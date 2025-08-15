@@ -1,4 +1,4 @@
-AÑO,MES,Magnitud,Valor,Normalizado,Año - Mes
+year,month,magnitude,value,normalized,year-month
 2001,1,Benceno,2.911290323,1,2001-1
 2001,1,Dióxido de Azufre,22.51971326,1,2001-1
 2001,1,Dióxido de Nitrógeno,54.02150538,1,2001-1
@@ -4962,3 +4962,4 @@ AÑO,MES,Magnitud,Valor,Normalizado,Año - Mes
 ,,,,,-
 ,,,,,-
 ,,,,,-
+
