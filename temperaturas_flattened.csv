@@ -1,4 +1,4 @@
-year,category,country,value
+year,category,country,val
 1880,No_Smoothing,World,-0.17
 1880,Lowess(5),World,-0.1
 1881,No_Smoothing,World,-0.09
@@ -289,4 +289,5 @@ year,category,country,value
 2023,Lowess(5),World,1.14
 2024,No_Smoothing,World,1.29
 2024,Lowess(5),World,1.2
+
 
