@@ -1,4 +1,4 @@
-year,month,magnitude,value,normalized,year-month
+year,month,magnitude,val,normalized,year-month
 2001,1,Benceno,2.911290323,1,2001-1
 2001,1,Dióxido de Azufre,22.51971326,1,2001-1
 2001,1,Dióxido de Nitrógeno,54.02150538,1,2001-1
@@ -4962,4 +4962,5 @@ year,month,magnitude,value,normalized,year-month
 ,,,,,-
 ,,,,,-
 ,,,,,-
+
 
