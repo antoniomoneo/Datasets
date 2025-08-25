@@ -9,7 +9,7 @@ from urllib.error import URLError, HTTPError
 API_URL = "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000"
 
 def fetch(url: str) -> tuple[dict | list, bytes]:
-    req = Request(url, headers={"User-Agent": "github-action-calair/1.2"})
+    req = Request(url, headers={"User-Agent": "github-action-calair/1.3"})
     with urlopen(req, timeout=90) as resp:
         raw = resp.read()
         try:
@@ -19,53 +19,89 @@ def fetch(url: str) -> tuple[dict | list, bytes]:
         return data, raw
 
 def extract_rows(payload: dict | list) -> list[dict]:
-    """
-    Intenta encontrar filas tipo list[dict] en payload.
-    - Si payload ya es una lista de dicts, úsala.
-    - Si es dict, busca la primera clave cuyo valor sea list[dict].
-    """
     if isinstance(payload, list):
-        return payload if (payload and isinstance(payload[0], dict)) else []
-
+        return payload if (not payload or isinstance(payload[0], dict)) else []
     if isinstance(payload, dict):
-        # 1) campos comunes
         for key in ("data", "result", "results", "items", "rows"):
             val = payload.get(key)
             if isinstance(val, list) and (not val or isinstance(val[0], dict)):
                 return val or []
-        # 2) fallback: primera lista de dicts que encontremos
         for v in payload.values():
             if isinstance(v, list) and (not v or isinstance(v[0], dict)):
                 return v or []
     return []
 
 def safe_fieldnames(rows: list[dict]) -> list[str]:
-    if rows:
-        # Unión ordenada de claves (primera fila como base)
-        keys = list(rows[0].keys())
-        seen = set(keys)
-        for r in rows[1:]:
-            for k in r.keys():
-                if k not in seen:
-                    seen.add(k)
-                    keys.append(k)
-        return keys
-    return []
+    if not rows: return []
+    keys = list(rows[0].keys())
+    seen = set(keys)
+    for r in rows[1:]:
+        for k in r.keys():
+            if k not in seen:
+                seen.add(k); keys.append(k)
+    return keys
+
+# -------- Tipado sencillo --------
+def infer_value_type(v) -> str:
+    if v is None: return "null"
+    if isinstance(v, bool): return "boolean"
+    if isinstance(v, (int, float)): return "number"
+    # todo lo demás como string (incluye fechas ISO)
+    return "string"
+
+def infer_column_types(rows: list[dict], fieldnames: list[str]) -> list[str]:
+    types = []
+    for col in fieldnames:
+        col_type = None  # priorizamos: boolean/number/string; null no decide tipo
+        for r in rows:
+            v = r.get(col, None)
+            t = infer_value_type(v)
+            if t == "string":
+                col_type = "string"; break  # string domina
+            if t == "number":
+                if col_type != "string":
+                    col_type = "number"
+            elif t == "boolean":
+                if col_type is None:
+                    col_type = "boolean"
+        if col_type is None:
+            col_type = "null"
+        types.append(col_type)
+    return types
 
 def write_json(path: Path, obj):
     with path.open("w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False, indent=2)
 
-def write_csv(path: Path, rows: list[dict]):
+def write_csv_with_types(path: Path, rows: list[dict]):
+    """CSV con fila 1=cabeceras, fila 2=tipos, resto=datos."""
     fieldnames = safe_fieldnames(rows)
     with path.open("w", encoding="utf-8", newline="") as f:
-        if fieldnames:
-            w = csv.DictWriter(f, fieldnames=fieldnames)
-            w.writeheader()
-            w.writerows(rows)
-        else:
-            # CSV vacío (sin cabecera) si no hay datos ni claves
+        if not fieldnames:
+            # CSV vacío si no hay datos ni claves
             f.write("")
+            return
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        # cabeceras
+        w.writeheader()
+        # fila de tipos
+        types = infer_column_types(rows, fieldnames)
+        f.write(",".join(types) + "\n")
+        # datos
+        if rows:
+            w.writerows(rows)
+
+def write_csv_plain(path: Path, rows: list[dict]):
+    """CSV plano (sin fila de tipos). Útil para history.csv."""
+    fieldnames = safe_fieldnames(rows)
+    with path.open("w", encoding="utf-8", newline="") as f:
+        if not fieldnames:
+            f.write("")
+            return
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        if rows:
+            w.writerows(rows)
 
 def append_history(history_csv: Path, rows: list[dict]):
     if not rows:
@@ -103,29 +139,27 @@ def main() -> int:
         payload, raw = fetch(API_URL)
         print(f"✅ Fetch OK: {len(raw)} bytes. Tipo raíz: {type(payload).__name__}")
     except Exception as e:
-        # Incluso si falla el fetch, escribimos artefactos mínimos para diagnosticar
         err = {"error": str(e), "when": ts, "url": API_URL}
         write_json(latest_json, err)
         write_json(stamped_json, err)
-        write_csv(latest_csv, [])
-        write_csv(stamped_csv, [])
+        write_csv_with_types(latest_csv, [])
+        write_csv_with_types(stamped_csv, [])
         print(f"❌ Error fetch: {e}")
-        # Devolvemos código de error para que falle el job (visible en Actions)
         return 1
 
-    # Guardar JSON crudo (siempre)
+    # JSON siempre
     write_json(stamped_json, payload)
     write_json(latest_json, payload)
     print(f"💾 JSON: {stamped_json.name}, {latest_json.name}")
 
-    # Extraer filas y guardar CSVs del día (siempre)
+    # CSV con tipos (stamped & latest)
     rows = extract_rows(payload)
     print(f"🧮 Filas detectadas: {len(rows)}")
-    write_csv(stamped_csv, rows)
-    write_csv(latest_csv, rows)
+    write_csv_with_types(stamped_csv, rows)
+    write_csv_with_types(latest_csv, rows)
     print(f"💾 CSV: {stamped_csv.name}, {latest_csv.name}")
 
-    # Acumular histórico
+    # Histórico plano (sin fila de tipos)
     append_history(hist_csv, rows)
 
     return 0
