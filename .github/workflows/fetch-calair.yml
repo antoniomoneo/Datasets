@@ -1,0 +1,39 @@
+name: Fetch calair_tiemporeal (daily)
+
+on:
+  schedule:
+    # GitHub Actions usa UTC. Esto corre cada día a las 06:05 UTC (08:05 en Madrid, horario de verano).
+    - cron: "5 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # permite pushear con GITHUB_TOKEN
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Ensure scripts are executable
+        run: chmod +x scripts/fetch_calair.py
+
+      - name: Fetch JSON and write files
+        run: python scripts/fetch_calair.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add data/calair
+            git commit -m "chore: daily calair_tiemporeal snapshot [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
