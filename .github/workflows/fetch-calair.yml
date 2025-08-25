@@ -2,8 +2,7 @@ name: Fetch calair_tiemporeal (daily)
 
 on:
   schedule:
-    # Todos los días a las 06:05 UTC (08:05 en Madrid en verano)
-    - cron: "5 6 * * *"
+    - cron: "5 6 * * *"   # 06:05 UTC (08:05 Madrid en verano)
   workflow_dispatch: {}
 
 jobs:
@@ -16,24 +15,40 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: main   # 👈 fuerza siempre la rama main
+          ref: main
 
       - name: Show HEAD and script version
         run: |
           git log -1 --oneline
-          echo "==== scripts/fetch_calair.py (primeras 40 líneas) ===="
-          sed -n '1,40p' scripts/fetch_calair.py || true
+          echo "==== scripts/fetch_calair.py (primeras 60 líneas) ===="
+          sed -n '1,60p' scripts/fetch_calair.py || true
+
+      - name: Quick API sanity (curl)
+        run: |
+          set -e
+          echo "HEADERS >>>"
+          curl -I --retry 3 --max-time 30 "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000" || true
+          echo "SAMPLE (first 500 bytes) >>>"
+          curl -s --retry 3 --max-time 60 "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000" | head -c 500 || true
+          echo
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Ensure script is executable
-        run: chmod +x scripts/fetch_calair.py
+      - name: Run fetch script (JSON + CSV + history.csv)
+        run: |
+          set -e
+          python scripts/fetch_calair.py
 
-      - name: Run fetch script (JSON + CSV)
-        run: python scripts/fetch_calair.py
+      - name: List output files
+        run: |
+          echo "=== Tree data/calair ==="
+          ls -Ral data/calair || true
+          echo "=== history.csv head/tail ==="
+          head -n 3 data/calair/history.csv || true
+          tail -n 3 data/calair/history.csv || true
 
       - name: Commit & push if changed
         run: |
@@ -41,7 +56,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if [ -n "$(git status --porcelain)" ]; then
             git add data/calair
-            git commit -m "chore: daily calair_tiemporeal snapshot (json+csv) [skip ci]"
+            git commit -m "chore: daily calair (json+csv) + update history.csv [skip ci]"
             git push
           else
             echo "No changes to commit."
