@@ -1,4 +1,4 @@
-name: CalAIR fin de día → GCS (solo latest.flat.csv público)
+name: CalAIR fin de día → GCS (latest.flat.csv público)
 
 on:
   workflow_dispatch:
@@ -56,7 +56,7 @@ jobs:
           echo "Contenido de $TARGET_DIR:"
           ls -la "$TARGET_DIR"
 
-      - name: Reset prefix y publicar SOLO latest.flat.csv (público)
+      - name: Reset prefix y publicar SOLO latest.flat.csv (público + no-cache)
         shell: bash
         run: |
           set -e
@@ -72,7 +72,7 @@ jobs:
           gsutil -m cp "$TARGET_DIR/latest.flat.csv" "$DEST"
 
           echo "🔓 Haciendo público SOLO ese objeto (ACL AllUsers:R)..."
-          # Si tu bucket tiene 'uniform_bucket_level_access: true', este comando fallará; en ese caso, da permisos IAM a nivel de bucket.
+          # Si el bucket usa UBLA, este comando puede fallar; en ese caso, añade IAM allUsers:objectViewer al bucket 1 sola vez.
           gsutil acl ch -u AllUsers:R "$DEST" || true
 
           echo "🚫 Deshabilitando caché para evitar stale en AI Studio..."
