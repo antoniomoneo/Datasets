@@ -1,0 +1,11 @@
+{
+  "error": "'utf-8' codec can't decode byte 0xe1 in position 269: invalid continuation byte",
+  "when": "2025-08-28T10-47-14+0200",
+  "url": "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_historico.json",
+  "payload": {
+    "where": {
+      "fecha": "2025-08-27"
+    },
+    "pageSize": 5000
+  }
+}

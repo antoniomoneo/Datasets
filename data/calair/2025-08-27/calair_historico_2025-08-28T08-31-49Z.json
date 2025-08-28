@@ -1,0 +1,11 @@
+{
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1000)>",
+  "when": "2025-08-28T08-31-49Z",
+  "url": "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_historico.json",
+  "payload": {
+    "where": {
+      "fecha": "2025-08-27"
+    },
+    "pageSize": 5000
+  }
+}
