@@ -1,13 +1,17 @@
-name: CalAIR fin de día → GCS
+name: CalAIR fin de día → GCS (solo latest.flat.csv público)
 
 on:
   workflow_dispatch:
     inputs:
       date:
-        description: "Fecha en formato YYYY-MM-DD (opcional, por defecto ayer)"
+        description: "Fecha YYYY-MM-DD (opcional; por defecto ayer, Europe/Madrid)"
         required: false
   schedule:
-    - cron: "30 23 * * *"  # todos los días a las 23:30 UTC (01:30 Madrid)
+    - cron: "15 2 * * *"  # 02:15 UTC ≈ 04:15 Madrid
+
+env:
+  GCP_PROJECT_ID: aire-470107
+  GCS_BUCKET: aire-470107-datasets-usw1
 
 jobs:
   fetch-and-upload:
@@ -16,7 +20,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -24,19 +28,19 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install certifi
+          pip install requests
 
       - name: Auth to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Set up gcloud
+      - name: Setup gcloud (gsutil)
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Run script
+      - name: Run script (fin de día)
         id: run
         shell: bash
         run: |
@@ -45,20 +49,18 @@ jobs:
             python scripts/fetch_calair_fin_dia.py --date "${{ github.event.inputs.date }}"
             TARGET_DIR="data/calair/${{ github.event.inputs.date }}"
           else
-            python scripts/fetch_calair_fin_dia.py --yesterday
+            python scripts/fetch_calair_fin_dia.py
             TARGET_DIR=$(ls -dt data/calair/*/ | head -n1 | sed 's:/$::')
           fi
           echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
           echo "Contenido de $TARGET_DIR:"
           ls -la "$TARGET_DIR"
 
-      - name: Upload only latest.flat.csv to GCS (reset bucket)
+      - name: Reset prefix y publicar SOLO latest.flat.csv (público)
         shell: bash
         run: |
           set -e
-          DATE_BASENAME=$(basename "$TARGET_DIR")
-
-          echo "🗑️ Borrando datasets antiguos en gs://${{ env.GCS_BUCKET }}/calair/"
+          echo "🗑️ Borrando datasets antiguos en gs://${{ env.GCS_BUCKET }}/calair/ ..."
           gsutil -m rm -r gs://${{ env.GCS_BUCKET }}/calair/** || true
 
           echo "📌 Detectando el .flat.csv más reciente..."
@@ -66,11 +68,17 @@ jobs:
           cp "$LATEST_FLAT_LOCAL" "$TARGET_DIR/latest.flat.csv"
 
           echo "⬆️ Subiendo latest.flat.csv..."
-          gsutil -m cp "$TARGET_DIR/latest.flat.csv" gs://${{ env.GCS_BUCKET }}/calair/latest.flat.csv
+          DEST="gs://${{ env.GCS_BUCKET }}/calair/latest.flat.csv"
+          gsutil -m cp "$TARGET_DIR/latest.flat.csv" "$DEST"
 
-          echo "✅ Publicado en GCS:"
-          gsutil ls -lh gs://${{ env.GCS_BUCKET }}/calair/latest.flat.csv
+          echo "🔓 Haciendo público SOLO ese objeto (ACL AllUsers:R)..."
+          # Si tu bucket tiene 'uniform_bucket_level_access: true', este comando fallará; en ese caso, da permisos IAM a nivel de bucket.
+          gsutil acl ch -u AllUsers:R "$DEST" || true
 
-env:
-  GCP_PROJECT_ID: aire-470107
-  GCS_BUCKET: aire-470107-datasets-usw1
+          echo "🚫 Deshabilitando caché para evitar stale en AI Studio..."
+          gsutil -m setmeta -h "Cache-Control:no-cache, max-age=0" "$DEST"
+
+          echo "✅ Publicado:"
+          gsutil ls -lh "$DEST"
+          echo "🌐 URL pública (si ACL correcto):"
+          echo "https://storage.googleapis.com/${{ env.GCS_BUCKET }}/calair/latest.flat.csv"
