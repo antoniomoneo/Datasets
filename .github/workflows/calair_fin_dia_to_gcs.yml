@@ -50,7 +50,11 @@ jobs:
             TARGET_DIR="data/calair/${{ github.event.inputs.date }}"
           else
             python ./scripts/fetch_calair_fin_dia.py
-            TARGET_DIR=$(ls -dt data/calair/*/ | head -n1 | sed 's:/$::')
+            TARGET_DIR=$(find data/calair -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)
+            if [ -z "$TARGET_DIR" ]; then
+              echo "❌ No se encontró ningún directorio en data/calair/"
+              exit 1
+            fi
           fi
           echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
           echo "Contenido de $TARGET_DIR:"
