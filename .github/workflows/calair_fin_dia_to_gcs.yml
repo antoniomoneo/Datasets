@@ -65,10 +65,16 @@ jobs:
         run: |
           set -e
           echo "🗑️ Borrando datasets antiguos en gs://${{ env.GCS_BUCKET }}/calair/ ..."
-          gsutil -m rm -r gs://${{ env.GCS_BUCKET }}/calair/** || true
+          if ! gsutil -m rm -r -f gs://${{ env.GCS_BUCKET }}/calair/**; then
+            echo "⚠️ No se pudieron borrar datasets antiguos (puede que no existan)"
+          fi
 
           echo "📌 Detectando el .flat.csv más reciente..."
-          LATEST_FLAT_LOCAL="$(ls -t "$TARGET_DIR"/calair_*\.flat\.csv | head -n1)"
+          LATEST_FLAT_LOCAL=$(find "$TARGET_DIR" -maxdepth 1 -type f -name 'calair_fin_dia_*.flat.csv' | sort | tail -n1)
+          if [ -z "$LATEST_FLAT_LOCAL" ]; then
+            echo "❌ No se encontró ningún .flat.csv en $TARGET_DIR"
+            exit 1
+          fi
           cp "$LATEST_FLAT_LOCAL" "$TARGET_DIR/latest.flat.csv"
 
           echo "⬆️ Subiendo latest.flat.csv..."
@@ -76,8 +82,10 @@ jobs:
           gsutil -m cp "$TARGET_DIR/latest.flat.csv" "$DEST"
 
           echo "🔓 Haciendo público SOLO ese objeto (ACL AllUsers:R)..."
-          # Si el bucket usa UBLA, este comando puede fallar; en ese caso, añade IAM allUsers:objectViewer al bucket 1 sola vez.
-          gsutil acl ch -u AllUsers:R "$DEST" || true
+          # En buckets con Uniform Bucket-Level Access este comando fallará; en ese caso, concede IAM allUsers:objectViewer al bucket una vez.
+          if ! gsutil acl ch -u AllUsers:R "$DEST"; then
+            echo "⚠️ No se pudo aplicar ACL; si el bucket usa UBLA, otorga IAM allUsers:objectViewer"
+          fi
 
           echo "🚫 Deshabilitando caché para evitar stale en AI Studio..."
           gsutil -m setmeta -h "Cache-Control:no-cache, max-age=0" "$DEST"
