@@ -46,10 +46,10 @@ jobs:
         run: |
           set -e
           if [ -n "${{ github.event.inputs.date }}" ]; then
-            python scripts/fetch_calair_fin_dia.py --date "${{ github.event.inputs.date }}"
+            python ./scripts/fetch_calair_fin_dia.py --date "${{ github.event.inputs.date }}"
             TARGET_DIR="data/calair/${{ github.event.inputs.date }}"
           else
-            python scripts/fetch_calair_fin_dia.py
+            python ./scripts/fetch_calair_fin_dia.py
             TARGET_DIR=$(ls -dt data/calair/*/ | head -n1 | sed 's:/$::')
           fi
           echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
