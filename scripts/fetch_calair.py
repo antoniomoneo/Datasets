@@ -43,37 +43,6 @@ def safe_fieldnames(rows: List[Dict[str, Any]]) -> List[str]:
                 seen.add(k); keys.append(k)
     return keys
 
-# ========= Tipado CSV (2ª fila) =========
-def infer_value_type(v) -> str:
-    if v is None: return "null"
-    if isinstance(v, bool): return "boolean"
-    if isinstance(v, (int, float)) and not (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
-        return "number"
-    return "string"
-
-def infer_column_types(rows: List[Dict[str, Any]], fieldnames: List[str]) -> List[str]:
-    types = []
-    for col in fieldnames:
-        col_type = None
-        for r in rows:
-            t = infer_value_type(r.get(col, None))
-            if t == "string": col_type = "string"; break
-            if t == "number" and col_type != "string": col_type = "number"
-            if t == "boolean" and col_type is None: col_type = "boolean"
-        types.append(col_type or "null")
-    return types
-
-def write_csv_with_types(path: Path, rows: List[Dict[str, Any]]):
-    fns = safe_fieldnames(rows)
-    with path.open("w", encoding="utf-8", newline="") as f:
-        if not fns:
-            f.write("")
-            return
-        w = csv.DictWriter(f, fieldnames=fns)
-        w.writeheader()
-        f.write(",".join(infer_column_types(rows, fns)) + "\n")
-        if rows: w.writerows(rows)
-
 def write_csv_plain(path: Path, rows: List[Dict[str, Any]]):
     fns = safe_fieldnames(rows)
     with path.open("w", encoding="utf-8", newline="") as f:
@@ -313,7 +282,7 @@ def main() -> int:
         latest_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
         # Creamos CSV vacíos (diagnóstico)
         for p in (stamped_csv, latest_csv, stamped_flat_csv, latest_flat_csv):
-            write_csv_with_types(p, [])
+            write_csv_plain(p, [])
         print(f"❌ Error fetch: {e}")
         return 1
 
@@ -358,22 +327,22 @@ def main() -> int:
     # 6) Normalizar horas a numéricas
     rows = normalize_numeric_hours(rows)
 
-    # 7) CSV anchos (con 2ª fila de tipos)
-    write_csv_with_types(stamped_csv, rows)
-    write_csv_with_types(latest_csv, rows)
+    # 7) CSV anchos
+    write_csv_plain(stamped_csv, rows)
+    write_csv_plain(latest_csv, rows)
     print(f"💾 CSV ancho: {stamped_csv.name}, {latest_csv.name}")
 
     # 8) Versión larga: Hora / Valor / Validacion
     rows_flat = unpivot_hours_to_long(rows, drop_empty=True)
-    write_csv_with_types(stamped_flat_csv, rows_flat)
-    write_csv_with_types(latest_flat_csv, rows_flat)
+    write_csv_plain(stamped_flat_csv, rows_flat)
+    write_csv_plain(latest_flat_csv, rows_flat)
     print(f"💾 CSV largo: {stamped_flat_csv.name}, {latest_flat_csv.name}")
 
     # 8bis) Copia a nivel raíz para pisar la del día anterior
     root_latest_flat = Path("data/calair/latest.flat.csv")
-    write_csv_with_types(root_latest_flat, rows_flat)
+    write_csv_plain(root_latest_flat, rows_flat)
     print(f"💾 Copia actualizada: {root_latest_flat}")
-    
+
     # 9) Históricos (planos, sin fila de tipos)
     append_history(hist_csv, rows)
     append_history_flat(hist_flat_csv, rows_flat)
