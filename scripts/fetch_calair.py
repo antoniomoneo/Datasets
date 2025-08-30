@@ -369,6 +369,11 @@ def main() -> int:
     write_csv_with_types(latest_flat_csv, rows_flat)
     print(f"💾 CSV largo: {stamped_flat_csv.name}, {latest_flat_csv.name}")
 
+    # 8bis) Copia a nivel raíz para pisar la del día anterior
+    root_latest_flat = Path("data/calair/latest.flat.csv")
+    write_csv_with_types(root_latest_flat, rows_flat)
+    print(f"💾 Copia actualizada: {root_latest_flat}")
+    
     # 9) Históricos (planos, sin fila de tipos)
     append_history(hist_csv, rows)
     append_history_flat(hist_flat_csv, rows_flat)
