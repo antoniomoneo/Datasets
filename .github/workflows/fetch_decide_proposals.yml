@@ -36,12 +36,25 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run fetch script
+      - name: Setup Node.js
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build TypeScript tools
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          npm install --no-save typescript
+          npx tsc
+
+      - name: Run fetch script (TS)
         id: fetch
         if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          bash scripts/fetch_decide_proposals.sh
+          node scripts/dist/fetch_decide_proposals.js
 
       - name: Publish summary to job summary
         if: steps.gate.outputs.run == 'true'
