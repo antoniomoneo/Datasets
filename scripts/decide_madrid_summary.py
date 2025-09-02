@@ -129,7 +129,7 @@ def build_markdown(latest: Dict[str, Any], delta: Optional[int]) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description='Summarize Decide Madrid proposals CSV')
-    ap.add_argument('--in', dest='inp', default='datasets/decide-madrid/proposals_latest.csv', help='Path to latest CSV')
+    ap.add_argument('--in', dest='inp', default='decide-madrid/proposals_latest.csv', help='Path to latest CSV')
     ap.add_argument('--prev', dest='prev', default=None, help='Optional path to previous-day CSV')
     ap.add_argument('--compare-git', action='store_true', help='Compare proposals count against previous commit version')
     ap.add_argument('--out-json', dest='out_json', default=None, help='Optional path to write JSON summary')
@@ -173,4 +173,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

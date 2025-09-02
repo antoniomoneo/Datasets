@@ -41,15 +41,21 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          mkdir -p datasets/decide-madrid
+          mkdir -p decide-madrid
           url="https://decide.madrid.es/system/api/proposals.csv"
           tmpfile=$(mktemp)
-          curl -fsSL "$url" -o "$tmpfile"
+          # Añadir UA y aceptar CSV; reintentar en errores transitorios
+          curl -sSLo "$tmpfile" \
+            --retry 5 --retry-delay 5 --retry-all-errors \
+            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
+            -H "Accept: text/csv, */*;q=0.1" \
+            -H "Referer: https://decide.madrid.es/" \
+            "$url"
           if [ ! -s "$tmpfile" ]; then
             echo "Downloaded file is empty" >&2
             exit 1
           fi
-          dest="datasets/decide-madrid/proposals_latest.csv"
+          dest="decide-madrid/proposals_latest.csv"
           if [ -f "$dest" ] && cmp -s "$tmpfile" "$dest"; then
             echo "No changes in CSV"
             echo "no_changes=true" >> "$GITHUB_OUTPUT"
@@ -63,12 +69,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/decide_madrid_summary.py \
-            --in datasets/decide-madrid/proposals_latest.csv \
+            --in decide-madrid/proposals_latest.csv \
             --compare-git \
-            --out-json datasets/decide-madrid/proposals_summary.json \
-            --out-md datasets/decide-madrid/proposals_summary.md
+            --out-json decide-madrid/proposals_summary.json \
+            --out-md decide-madrid/proposals_summary.md
           echo "\n## Summary (from script)\n" >> "$GITHUB_STEP_SUMMARY"
-          cat datasets/decide-madrid/proposals_summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat decide-madrid/proposals_summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit and push if changed
         if: steps.gate.outputs.run == 'true' && steps.download.outputs.no_changes == 'false'
@@ -76,7 +82,7 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add datasets/decide-madrid/proposals_latest.csv
-          git add datasets/decide-madrid/proposals_summary.json datasets/decide-madrid/proposals_summary.md || true
+          git add decide-madrid/proposals_latest.csv
+          git add decide-madrid/proposals_summary.json decide-madrid/proposals_summary.md || true
           git commit -m "chore(data): update Decide Madrid proposals (latest)"
           git push
