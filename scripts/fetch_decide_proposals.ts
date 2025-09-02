@@ -15,11 +15,34 @@ import { TextDecoder } from 'util';
 const DEST_DIR = 'decide-madrid';
 const DEST_FILE = `${DEST_DIR}/proposals_latest.csv`;
 const DEST_TS = `${DEST_DIR}/proposals_latest.ts`;
-const URL_STR = 'https://decide.madrid.es/system/api/proposals.csv';
+const DEFAULT_URL = 'https://decide.madrid.es/system/api/proposals.csv';
+const URL_STR = process.env.DECIDE_MADRID_URL || DEFAULT_URL;
 
 type Headers = Record<string, string>;
 
-function get(urlStr: string, headers: Headers, maxRedirects = 5): Promise<{ status: number; headers: Headers; body: Buffer }> {
+type CookieJar = Record<string, string>;
+
+function cookieHeader(jar: CookieJar): string | undefined {
+  const entries = Object.entries(jar);
+  if (entries.length === 0) return undefined;
+  return entries.map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+function mergeSetCookies(jar: CookieJar, setCookieHdrs?: string | string[]): void {
+  if (!setCookieHdrs) return;
+  const arr = Array.isArray(setCookieHdrs) ? setCookieHdrs : [setCookieHdrs];
+  for (const sc of arr) {
+    const first = sc.split(';', 1)[0];
+    const eq = first.indexOf('=');
+    if (eq > 0) {
+      const name = first.slice(0, eq).trim();
+      const value = first.slice(eq + 1).trim();
+      if (name && value) jar[name] = value;
+    }
+  }
+}
+
+function get(urlStr: string, headers: Headers, jar: CookieJar, maxRedirects = 5): Promise<{ status: number; headers: Headers; body: Buffer }> {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
     const opts: https.RequestOptions = {
@@ -28,7 +51,10 @@ function get(urlStr: string, headers: Headers, maxRedirects = 5): Promise<{ stat
       path: u.pathname + u.search,
       port: u.port || (u.protocol === 'https:' ? 443 : 80),
       method: 'GET',
-      headers,
+      headers: {
+        ...headers,
+        ...(cookieHeader(jar) ? { 'Cookie': cookieHeader(jar)! } : {}),
+      },
     };
     const mod = u.protocol === 'https:' ? https : http;
     const req = mod.request(opts, (res) => {
@@ -41,11 +67,12 @@ function get(urlStr: string, headers: Headers, maxRedirects = 5): Promise<{ stat
           if (Array.isArray(v)) hdrs[k.toLowerCase()] = v.join(', ');
           else if (typeof v === 'string') hdrs[k.toLowerCase()] = v;
         });
+        mergeSetCookies(jar, res.headers['set-cookie'] as any);
         const buf = Buffer.concat(chunks);
         if (status >= 300 && status < 400 && hdrs['location']) {
           if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
           const next = new URL(hdrs['location'], u).toString();
-          get(next, headers, maxRedirects - 1).then(resolve).catch(reject);
+          get(next, headers, jar, maxRedirects - 1).then(resolve).catch(reject);
           return;
         }
         resolve({ status, headers: hdrs, body: buf });
@@ -63,6 +90,10 @@ function headers(): Headers {
     'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
     'Connection': 'keep-alive',
     'Referer': 'https://decide.madrid.es/',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Dest': 'document',
+    'Upgrade-Insecure-Requests': '1',
   };
 }
 
@@ -91,7 +122,13 @@ async function main() {
   mkdirSync(DEST_DIR, { recursive: true });
   console.log(`Descargando CSV desde: ${URL_STR}`);
 
-  const res = await get(URL_STR, headers());
+  const jar: CookieJar = {};
+  // Primer toque a la home para obtener cookies de sesión/CDN
+  try {
+    await get(new URL(URL_STR).origin + '/', { ...headers(), Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' }, jar);
+  } catch {}
+
+  const res = await get(URL_STR, headers(), jar);
   if (res.status < 200 || res.status >= 300) {
     throw new Error(`HTTP ${res.status}`);
   }
