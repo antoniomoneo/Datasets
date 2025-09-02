@@ -2,7 +2,7 @@ name: Fetch Decide Madrid proposals (latest)
 
 on:
   schedule:
-    # Ejecuta a las 21:59 y 22:59 UTC; una compuerta decide si es 23:59 en Madrid
+    # Dos disparos y compuerta para asegurar 23:59 Europe/Madrid todo el año
     - cron: '59 21 * * *'
     - cron: '59 22 * * *'
   workflow_dispatch:
@@ -36,79 +36,26 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Download latest CSV
-        id: download
+      - name: Run fetch script
+        id: fetch
         if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          mkdir -p decide-madrid
-          url="https://decide.madrid.es/system/api/proposals.csv"
-          tmpfile=$(mktemp)
-          headers=$(mktemp)
+          bash scripts/fetch_decide_proposals.sh
 
-          try_download() {
-            ua="$1"
-            curl -sSL --fail --compressed --http1.1 \
-              --retry 5 --retry-delay 5 --retry-all-errors \
-              -D "$headers" -o "$tmpfile" \
-              -H "User-Agent: $ua" \
-              -H "Accept: text/csv, text/plain;q=0.9, */*;q=0.1" \
-              -H "Accept-Language: es-ES,es;q=0.9,en;q=0.8" \
-              -H "Connection: keep-alive" \
-              -H "Referer: https://decide.madrid.es/" \
-              "$url"
-          }
-
-          # Intento 1: Safari macOS
-          if ! try_download "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15"; then
-            echo "First attempt failed; trying with Chrome UA" >&2
-            # Intento 2: Chrome genérico
-            try_download "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
-          fi
-
-          # Validaciones adicionales: tipo de contenido y firma del archivo
-          if [ ! -s "$tmpfile" ]; then
-            echo "Downloaded file is empty" >&2
-            exit 1
-          fi
-          ctype=$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' | awk -F': ' '{print tolower($2)}') || true
-          if [ -n "$ctype" ] && ! echo "$ctype" | grep -Eq 'text/csv|application/csv|text/plain'; then
-            echo "Unexpected content-type: $ctype" >&2
-            exit 1
-          fi
-          if head -c 20 "$tmpfile" | grep -qi '<html'; then
-            echo "Server returned HTML instead of CSV (likely 403)" >&2
-            exit 1
-          fi
-
-          dest="decide-madrid/proposals_latest.csv"
-          if [ -f "$dest" ] && cmp -s "$tmpfile" "$dest"; then
-            echo "No changes in CSV"
-            echo "no_changes=true" >> "$GITHUB_OUTPUT"
-          else
-            mv "$tmpfile" "$dest"
-            echo "no_changes=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate summary metrics
-        if: steps.gate.outputs.run == 'true' && steps.download.outputs.no_changes == 'false'
+      - name: Publish summary to job summary
+        if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          python3 scripts/decide_madrid_summary.py \
-            --in decide-madrid/proposals_latest.csv \
-            --compare-git \
-            --out-json decide-madrid/proposals_summary.json \
-            --out-md decide-madrid/proposals_summary.md
-          echo "\n## Summary (from script)\n" >> "$GITHUB_STEP_SUMMARY"
-          cat decide-madrid/proposals_summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f decide-madrid/proposals_summary.md ]; then
+            echo "\n## Summary (from script)\n" >> "$GITHUB_STEP_SUMMARY"
+            cat decide-madrid/proposals_summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No hay resumen para publicar (posible ausencia de cambios)" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
-      - name: Commit and push if changed
-        if: steps.gate.outputs.run == 'true' && steps.download.outputs.no_changes == 'false'
+      - name: Push (if a commit was created)
+        if: steps.gate.outputs.run == 'true'
         run: |
           set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add decide-madrid/proposals_latest.csv
-          git add decide-madrid/proposals_summary.json decide-madrid/proposals_summary.md || true
-          git commit -m "chore(data): update Decide Madrid proposals (latest)"
-          git push
+          git push origin HEAD:main || true
