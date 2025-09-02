@@ -44,17 +44,43 @@ jobs:
           mkdir -p decide-madrid
           url="https://decide.madrid.es/system/api/proposals.csv"
           tmpfile=$(mktemp)
-          # Añadir UA y aceptar CSV; reintentar en errores transitorios
-          curl -sSL -o "$tmpfile" \
-            --retry 5 --retry-delay 5 --retry-all-errors \
-            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
-            -H "Accept: text/csv, */*;q=0.1" \
-            -H "Referer: https://decide.madrid.es/" \
-            "$url"
+          headers=$(mktemp)
+
+          try_download() {
+            ua="$1"
+            curl -sSL --fail --compressed --http1.1 \
+              --retry 5 --retry-delay 5 --retry-all-errors \
+              -D "$headers" -o "$tmpfile" \
+              -H "User-Agent: $ua" \
+              -H "Accept: text/csv, text/plain;q=0.9, */*;q=0.1" \
+              -H "Accept-Language: es-ES,es;q=0.9,en;q=0.8" \
+              -H "Connection: keep-alive" \
+              -H "Referer: https://decide.madrid.es/" \
+              "$url"
+          }
+
+          # Intento 1: Safari macOS
+          if ! try_download "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15"; then
+            echo "First attempt failed; trying with Chrome UA" >&2
+            # Intento 2: Chrome genérico
+            try_download "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+          fi
+
+          # Validaciones adicionales: tipo de contenido y firma del archivo
           if [ ! -s "$tmpfile" ]; then
             echo "Downloaded file is empty" >&2
             exit 1
           fi
+          ctype=$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' | awk -F': ' '{print tolower($2)}') || true
+          if [ -n "$ctype" ] && ! echo "$ctype" | grep -Eq 'text/csv|application/csv|text/plain'; then
+            echo "Unexpected content-type: $ctype" >&2
+            exit 1
+          fi
+          if head -c 20 "$tmpfile" | grep -qi '<html'; then
+            echo "Server returned HTML instead of CSV (likely 403)" >&2
+            exit 1
+          fi
+
           dest="decide-madrid/proposals_latest.csv"
           if [ -f "$dest" ] && cmp -s "$tmpfile" "$dest"; then
             echo "No changes in CSV"
