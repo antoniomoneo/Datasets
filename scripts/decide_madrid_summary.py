@@ -5,7 +5,7 @@ import io
 import json
 import os
 import subprocess
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 
 def parse_float(value: str) -> Optional[float]:
@@ -35,6 +35,27 @@ def count_retired(row: Dict[str, str]) -> int:
     return 0
 
 
+def _open_text_with_fallback(path: str) -> Tuple[io.TextIOBase, str]:
+    encodings = ("utf-8", "utf-8-sig", "iso-8859-1", "cp1252")
+    last_err: Optional[Exception] = None
+    for enc in encodings:
+        try:
+            f = open(path, mode='r', encoding=enc, newline='')
+            # Touch-read a bit to trigger decoding issues early
+            _ = f.read(4096)
+            f.seek(0)
+            return f, enc
+        except UnicodeDecodeError as e:
+            last_err = e
+            continue
+    # Fallback to binary with replacement to avoid hard crash
+    if last_err is not None:
+        f = open(path, mode='r', encoding='utf-8', errors='replace', newline='')
+        return f, 'utf-8-replace'
+    # Should not reach here
+    return open(path, mode='r', encoding='utf-8', newline=''), 'utf-8'
+
+
 def load_csv_counts(path: str) -> Dict[str, Any]:
     total_rows = 0
     sum_conf = 0.0
@@ -45,10 +66,11 @@ def load_csv_counts(path: str) -> Dict[str, Any]:
     cnt_votes_total = 0
     retired = 0
 
-    with open(path, newline='', encoding='utf-8') as f:
+    f, used_enc = _open_text_with_fallback(path)
+    with f:
         reader = csv.DictReader(f)
         # Normalize headers to handle case differences
-        reader.fieldnames = [h.strip() if h else h for h in reader.fieldnames or []]
+        reader.fieldnames = [h.strip() if h else h for h in (reader.fieldnames or [])]
         for row in reader:
             total_rows += 1
 
