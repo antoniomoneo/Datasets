@@ -1,0 +1,82 @@
+name: Fetch Decide Madrid proposals (latest)
+
+on:
+  schedule:
+    # Ejecuta a las 21:59 y 22:59 UTC; una compuerta decide si es 23:59 en Madrid
+    - cron: '59 21 * * *'
+    - cron: '59 22 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Gate at 23:59 Europe/Madrid
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "Manual run detected; bypassing time gate"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          now=$(TZ=Europe/Madrid date +'%H:%M')
+          echo "Local time (Europe/Madrid): $now"
+          if [ "$now" = "23:59" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download latest CSV
+        id: download
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p datasets/decide-madrid
+          url="https://decide.madrid.es/system/api/proposals.csv"
+          tmpfile=$(mktemp)
+          curl -fsSL "$url" -o "$tmpfile"
+          if [ ! -s "$tmpfile" ]; then
+            echo "Downloaded file is empty" >&2
+            exit 1
+          fi
+          dest="datasets/decide-madrid/proposals_latest.csv"
+          if [ -f "$dest" ] && cmp -s "$tmpfile" "$dest"; then
+            echo "No changes in CSV"
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            mv "$tmpfile" "$dest"
+            echo "no_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate summary metrics
+        if: steps.gate.outputs.run == 'true' && steps.download.outputs.no_changes == 'false'
+        run: |
+          set -euo pipefail
+          python3 scripts/decide_madrid_summary.py \
+            --in datasets/decide-madrid/proposals_latest.csv \
+            --compare-git \
+            --out-json datasets/decide-madrid/proposals_summary.json \
+            --out-md datasets/decide-madrid/proposals_summary.md
+          echo "\n## Summary (from script)\n" >> "$GITHUB_STEP_SUMMARY"
+          cat datasets/decide-madrid/proposals_summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and push if changed
+        if: steps.gate.outputs.run == 'true' && steps.download.outputs.no_changes == 'false'
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datasets/decide-madrid/proposals_latest.csv
+          git add datasets/decide-madrid/proposals_summary.json datasets/decide-madrid/proposals_summary.md || true
+          git commit -m "chore(data): update Decide Madrid proposals (latest)"
+          git push
