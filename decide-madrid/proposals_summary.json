@@ -1,0 +1,13 @@
+{
+  "metrics": {
+    "proposals_count": 9,
+    "confidence_score_mean": null,
+    "cached_votes_up_sum": 0,
+    "cached_votes_up_mean": null,
+    "cached_votes_total_sum": null,
+    "cached_votes_total_mean": null,
+    "retired_count": 0
+  },
+  "delta_vs_previous_day": null,
+  "source_file": "decide-madrid/proposals_latest.csv"
+}
