@@ -46,7 +46,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          npm install --no-save typescript
+          npm install --no-save typescript @types/node
           npx tsc
 
       - name: Run fetch script (TS)

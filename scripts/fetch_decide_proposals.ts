@@ -10,9 +10,11 @@ import { spawnSync } from 'child_process';
 import * as https from 'https';
 import * as http from 'http';
 import { URL } from 'url';
+import { TextDecoder } from 'util';
 
 const DEST_DIR = 'decide-madrid';
 const DEST_FILE = `${DEST_DIR}/proposals_latest.csv`;
+const DEST_TS = `${DEST_DIR}/proposals_latest.ts`;
 const URL_STR = 'https://decide.madrid.es/system/api/proposals.csv';
 
 type Headers = Record<string, string>;
@@ -69,6 +71,22 @@ function byteEqual(a: Buffer, b: Buffer): boolean {
   return a.compare(b) === 0;
 }
 
+function decodePreservingDiacritics(buf: Buffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true } as any).decode(buf);
+  } catch (_) {
+    try {
+      return new TextDecoder('windows-1252' as any).decode(buf);
+    } catch (_) {
+      return new TextDecoder('latin1' as any).decode(buf);
+    }
+  }
+}
+
+function escapeForTemplateLiteral(s: string): string {
+  return s.replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+}
+
 async function main() {
   mkdirSync(DEST_DIR, { recursive: true });
   console.log(`Descargando CSV desde: ${URL_STR}`);
@@ -103,6 +121,13 @@ async function main() {
   writeFileSync(DEST_FILE, res.body);
   console.log(`Actualizado ${DEST_FILE}`);
 
+  // Write TS module with preserved text (for TS consumption)
+  const text = decodePreservingDiacritics(res.body);
+  const escaped = escapeForTemplateLiteral(text);
+  const ts = `// Auto-generated from ${URL_STR}\n// Encoding preserved. Do not edit by hand.\nexport const proposalsCsv: string = \`${escaped}\`;\n\nexport function getProposalsCsvBlob(): Blob {\n  return new Blob([proposalsCsv], { type: 'text/csv;charset=utf-8' });\n}\n\nexport default proposalsCsv;\n`;
+  writeFileSync(DEST_TS, ts, { encoding: 'utf8' });
+  console.log(`Actualizado ${DEST_TS}`);
+
   // Run summary (compiled JS) if available
   const summaryJs = 'scripts/dist/decide_madrid_summary.js';
   const args = [summaryJs, '--in', DEST_FILE, '--compare-git', '--out-json', `${DEST_DIR}/proposals_summary.json`, '--out-md', `${DEST_DIR}/proposals_summary.md`];
@@ -112,7 +137,7 @@ async function main() {
   }
 
   // Stage and commit
-  spawnSync('git', ['add', DEST_FILE, `${DEST_DIR}/proposals_summary.json`, `${DEST_DIR}/proposals_summary.md`], { stdio: 'inherit' });
+  spawnSync('git', ['add', DEST_FILE, DEST_TS, `${DEST_DIR}/proposals_summary.json`, `${DEST_DIR}/proposals_summary.md`], { stdio: 'inherit' });
   const rows = spawnSync('wc', ['-l', DEST_FILE], { encoding: 'utf8' }).stdout?.trim().split(/\s+/)[0] || '';
   const commit = spawnSync('git', ['-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-m', `chore(decide-madrid): update proposals (latest, ${rows} rows)`], { stdio: 'inherit' });
   if ((commit.status ?? 0) !== 0) {
@@ -124,4 +149,3 @@ main().catch((e) => {
   console.error(String(e?.message || e));
   process.exit(1);
 });
-
