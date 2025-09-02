@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   fetch:
-    runs-on: [self-hosted, decide-madrid]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
           url="https://decide.madrid.es/system/api/proposals.csv"
           tmpfile=$(mktemp)
           # Añadir UA y aceptar CSV; reintentar en errores transitorios
-          curl -sSLo "$tmpfile" \
+          curl -sSL -o "$tmpfile" \
             --retry 5 --retry-delay 5 --retry-all-errors \
             -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
             -H "Accept: text/csv, */*;q=0.1" \
