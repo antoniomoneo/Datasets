@@ -58,14 +58,13 @@ if head -c 20 "$TMPFILE" | grep -qi '<html'; then
   exit 1
 fi
 
-# Apply filter (created_at >= 2024-01-01 and <= 2025-12-31) and drop description
+# Apply filter (created_at >= 2024-01-01) and drop description
 TMPFILT="$(mktemp)"
 python3 scripts/decide_madrid_filter.py \
   --in "$TMPFILE" \
   --out "$TMPFILT" \
   --drop-column description \
-  --from-date 2024-01-01 \
-  --to-date 2025-12-31
+  --from-date 2024-01-01
 
 # Check if filtered output changed vs latest
 CHANGED=1
