@@ -1,10 +1,14 @@
 # Datasets
-Dataset catalogue
+Catálogo de datasets y automatizaciones.
 
 ## Flujos automatizados
 
-- `fetch_calair_ayer.yml`: descarga diariamente los datos de CalAIR del día
-  anterior ejecutando `fetch_calair_fin_dia.py`. Se programa a las **01:30 UTC**
-  (≈03:30 Madrid) una vez cerrado el día y **antes** del flujo de subida a GCP.
-- `calair_fin_dia_to_gcs.yml`: publica el último `.flat.csv` en GCS a las
-  **02:15 UTC** (≈04:15 Madrid).
+- `fetch-calair.yml`: descarga CalAIR tiempo real y escribe `data/calair` (JSON, CSV ancho y `latest.flat.csv`).
+  - Comienza a las 23:00 Europe/Madrid y repite cada 15 min hasta ~01:45.
+  - Si el fichero del día sale vacío, reintenta y aplica fallback usando el último `latest.flat.csv` no vacío.
+
+- `fetch_decide_proposals.yml`: descarga CSV de propuestas de Decide Madrid, aplica filtro y genera resumen.
+  - Usa `scripts/decide_madrid_filter.py` y `scripts/decide_madrid_summary.py`.
+  - Puerta de tiempo a las 23:59 Europe/Madrid.
+
+- `update-tangible-climate-calendar.yml`: descarga un ICS público y actualiza `tangible-climate-calendar/calendar.csv` de forma horaria.
