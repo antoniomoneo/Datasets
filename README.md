@@ -12,3 +12,15 @@ Catálogo de datasets y automatizaciones.
   - Puerta de tiempo a las 23:59 Europe/Madrid.
 
 - `update-tangible-climate-calendar.yml`: descarga un ICS público y actualiza `tangible-climate-calendar/calendar.csv` de forma horaria.
+
+## Decide Madrid (uso local)
+
+Estos scripts se usan en el entorno local (macOS) mediante un LaunchAgent y no forman parte de los workflows de GitHub Actions:
+
+- `scripts/fetch_decide_madrid.sh` y `scripts/fetch_decide_proposals.sh`.
+- LaunchAgent: `ops/com.antoniomoneo.decide-madrid.plist` (apunta al `.sh`).
+
+Notas rápidas:
+- Cargar: `launchctl load ~/Documents/GitHub/Datasets/ops/com.antoniomoneo.decide-madrid.plist`
+- Descargar: `launchctl unload ~/Documents/GitHub/Datasets/ops/com.antoniomoneo.decide-madrid.plist`
+- Ejecución manual: `bash scripts/fetch_decide_madrid.sh`
