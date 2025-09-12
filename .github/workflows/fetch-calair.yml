@@ -1,10 +1,20 @@
 name: Fetch calair_tiemporeal (daily)
 
 on:
-  schedule:
-    - cron: "59 21 * * *"   # 23:59 Madrid en verano (UTC+2)
-    - cron: "59 22 * * *"   # 23:59 Madrid en invierno (UTC+1)
-  workflow_dispatch: {}
+  # Arranca a las 23:00 Madrid y repite cada 15 min hasta ~01:45
+  # Notas de huso horario: definimos dos ventanas (verano/invierno) en UTC
+  - cron: "0,15,30,45 21,22,23 * * *"   # 23:00→01:45 Madrid en verano (UTC+2)
+  - cron: "0,15,30,45 22,23,0 * * *"    # 23:00→01:45 Madrid en invierno (UTC+1)
+  workflow_dispatch:
+    inputs:
+      max_retries:
+        description: "CALAIR_MAX_RETRIES (default 2)"
+        required: false
+        default: "2"
+      wait_seconds:
+        description: "CALAIR_WAIT_SECONDS (default 180)"
+        required: false
+        default: "180"
 
 jobs:
   fetch-and-commit:
@@ -41,6 +51,9 @@ jobs:
       - name: Run fetch script (JSON + CSV + history.csv)
         run: |
           set -e
+          # Reintentos y espera configurables (inputs -> env)
+          export CALAIR_MAX_RETRIES="${{ github.event.inputs.max_retries || '2' }}"
+          export CALAIR_WAIT_SECONDS="${{ github.event.inputs.wait_seconds || '180' }}"
           python scripts/fetch_calair.py
 
       - name: List output files

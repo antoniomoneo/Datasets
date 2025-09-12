@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import json, csv, sys, re, math
+import json, csv, sys, re, math, os
 from datetime import datetime, timezone
+import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 from typing import Dict, List, Tuple, Any
@@ -253,7 +254,32 @@ def append_history_flat(history_flat_csv: Path, rows_flat: List[Dict[str, Any]])
             w.writerow(r)
     print(f"📚 history_flat.csv: {'creado' if new_file else 'actualizado'} (+{len(rows_flat)} filas).")
 
-# ========= Main =========
+def _search_last_nonempty_latest_flat(base: Path) -> Path | None:
+    """Busca el último `latest.flat.csv` no vacío en subcarpetas fechadas.
+    Devuelve el path si lo encuentra, si no None.
+    """
+    if not base.exists():
+        return None
+    candidates: list[tuple[str, Path]] = []
+    for child in base.iterdir():
+        if not child.is_dir():
+            continue
+        # Directorios tipo YYYY-MM-DD
+        name = child.name
+        try:
+            datetime.strptime(name, "%Y-%m-%d")
+        except ValueError:
+            continue
+        p = child / "latest.flat.csv"
+        if p.exists() and p.is_file() and p.stat().st_size > 0:
+            candidates.append((name, p))
+    if not candidates:
+        return None
+    # Ordenar por fecha descendente
+    candidates.sort(key=lambda t: t[0], reverse=True)
+    return candidates[0][1]
+
+
 def main() -> int:
     now_utc = datetime.now(timezone.utc)
     dt = now_utc.strftime("%Y-%m-%d")
@@ -272,27 +298,48 @@ def main() -> int:
     stamped_flat_csv = day_dir / f"calair_tiemporeal_{ts}.flat.csv"
     latest_flat_csv  = day_dir / "latest.flat.csv"
 
-    # 1) Descarga datos tiempo real
-    try:
-        payload, raw = http_get_json(API_URL)
-        print(f"✅ Fetch tiempo real OK: {len(raw)} bytes")
-    except Exception as e:
-        err = {"error": str(e), "when": ts, "url": API_URL}
+    # 1) Descarga datos tiempo real con reintentos si el CSV plano queda vacío
+    max_retries = int((os.getenv("CALAIR_MAX_RETRIES") or "2").strip() or 2)
+    wait_seconds = int((os.getenv("CALAIR_WAIT_SECONDS") or "180").strip() or 180)
+    attempt = 0
+    last_err: Exception | None = None
+    payload = None
+    rows: List[Dict[str, Any]] = []
+    while attempt <= max_retries:
+        try:
+            payload, raw = http_get_json(API_URL)
+            print(f"✅ Fetch tiempo real OK: {len(raw)} bytes (attempt {attempt+1}/{max_retries+1})")
+        except Exception as e:
+            last_err = e
+            print(f"❌ Error fetch (attempt {attempt+1}/{max_retries+1}): {e}")
+            payload = None
+
+        if payload is not None:
+            # 2) Guarda JSON crudo (siempre que haya respuesta)
+            stamped_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            latest_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            # 3) Extrae filas
+            rows = extract_rows(payload)
+            print(f"🧮 Filas detectadas: {len(rows)}")
+
+            # Catálogo y procesamiento normal solo si hay contenido útil
+            if rows:
+                break
+
+        attempt += 1
+        if attempt <= max_retries:
+            print(f"⏳ latest.flat.csv vacío o sin filas; reintento en {wait_seconds}s...")
+            time.sleep(wait_seconds)
+
+    if payload is None and last_err is not None:
+        # Fallo duro de red en todos los intentos: dejamos diagnóstico mínimo y salimos
+        err = {"error": str(last_err), "when": ts, "url": API_URL}
         stamped_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
         latest_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
-        # Creamos CSV vacíos (diagnóstico)
         for p in (stamped_csv, latest_csv, stamped_flat_csv, latest_flat_csv):
             write_csv_plain(p, [])
-        print(f"❌ Error fetch: {e}")
+        print("❌ Abortado tras reintentos por error de red.")
         return 1
-
-    # 2) Guarda JSON crudo (siempre)
-    stamped_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    latest_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    # 3) Extrae filas
-    rows = extract_rows(payload)
-    print(f"🧮 Filas detectadas: {len(rows)}")
 
     # 4) Catálogo de estaciones (local)
     station_map = load_station_catalog()
@@ -334,6 +381,29 @@ def main() -> int:
 
     # 8) Versión larga: Hora / Valor / Validacion
     rows_flat = unpivot_hours_to_long(rows, drop_empty=True)
+    if not rows_flat:
+        # Fallback: usar el último latest.flat.csv no vacío de días anteriores
+        cand = _search_last_nonempty_latest_flat(Path("data/calair"))
+        if cand:
+            print(f"🔁 latest.flat.csv vacío. Usando fallback: {cand}")
+            # Copiamos contenido de cand a stamped_flat, latest_flat y raíz
+            data = cand.read_text(encoding="utf-8")
+            stamped_flat_csv.write_text(data, encoding="utf-8")
+            latest_flat_csv.write_text(data, encoding="utf-8")
+            root_latest_flat = Path("data/calair/latest.flat.csv")
+            root_latest_flat.write_text(data, encoding="utf-8")
+            # history_flat no se actualiza en este caso (evitar duplicados falsos)
+            print("✅ Fallback aplicado y copias actualizadas.")
+            return 0
+        else:
+            print("⚠️ latest.flat.csv vacío y sin fallback disponible.")
+            # Escribimos explícitamente vacíos como diagnóstico
+            write_csv_plain(stamped_flat_csv, [])
+            write_csv_plain(latest_flat_csv, [])
+            root_latest_flat = Path("data/calair/latest.flat.csv")
+            write_csv_plain(root_latest_flat, [])
+            return 0
+
     write_csv_plain(stamped_flat_csv, rows_flat)
     write_csv_plain(latest_flat_csv, rows_flat)
     print(f"💾 CSV largo: {stamped_flat_csv.name}, {latest_flat_csv.name}")
