@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.antoniomoneo.decide-madrid</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd ~/Documents/GitHub/Datasets && bash scripts/fetch_decide_madrid.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>23</integer>
+    <key>Minute</key>
+    <integer>59</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>~/Library/Logs/decide-madrid.log</string>
+  <key>StandardErrorPath</key>
+  <string>~/Library/Logs/decide-madrid.err</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+
