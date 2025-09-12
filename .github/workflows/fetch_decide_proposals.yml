@@ -91,13 +91,13 @@ jobs:
             exit 1
           fi
 
-          # Filter: created_at >= 2024-01-01 and drop description
+          # Normalize to app schema and optionally filter by date
           filt=$(mktemp)
           python3 scripts/decide_madrid_filter.py \
             --in "$tmp" \
             --out "$filt" \
-            --drop-column description \
-            --from-date 2024-01-01
+            --from-date 2024-01-01 \
+            --normalize
 
           dest="decide-madrid/proposals_latest.csv"
           if [ -f "$dest" ] && cmp -s "$filt" "$dest"; then
@@ -138,5 +138,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add decide-madrid/proposals_latest.csv
           git add decide-madrid/proposals_summary.json decide-madrid/proposals_summary.md || true
-          git commit -m "chore(decide-madrid): update filtered proposals (>=2024, no description)"
+          git commit -m "chore(decide-madrid): update proposals (normalized for app schema)"
           git push
