@@ -1,10 +1,11 @@
 name: Fetch calair_tiemporeal (daily)
 
 on:
-  # Arranca a las 23:00 Madrid y repite cada 15 min hasta ~01:45
-  # Notas de huso horario: definimos dos ventanas (verano/invierno) en UTC
-  - cron: "0,15,30,45 21,22,23 * * *"   # 23:00→01:45 Madrid en verano (UTC+2)
-  - cron: "0,15,30,45 22,23,0 * * *"    # 23:00→01:45 Madrid en invierno (UTC+1)
+  schedule:
+    # Arranca a las 23:00 Madrid y repite cada 15 min hasta ~01:45
+    # Notas de huso horario: definimos dos ventanas (verano/invierno) en UTC
+    - cron: "0,15,30,45 21,22,23 * * *"   # 23:00→01:45 Madrid en verano (UTC+2)
+    - cron: "0,15,30,45 22,23,0 * * *"    # 23:00→01:45 Madrid en invierno (UTC+1)
   workflow_dispatch:
     inputs:
       max_retries:
