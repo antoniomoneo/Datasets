@@ -8,7 +8,10 @@ from urllib.request import Request, urlopen
 from typing import Dict, List, Tuple, Any
 
 # ========= Config =========
-API_URL = "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000"
+API_URL = (
+    "https://datos.madrid.es/egob/CalidadDelAire/"
+    "listcalair_tiemporeal_ult?formato=json"
+)
 
 # Catálogo local de estaciones (ya en tu repo)
 LOCAL_STATIONS_CSV = Path("datasets/meta/informacion_estaciones_red_calidad_aire.csv")
@@ -201,6 +204,18 @@ def normalize_numeric_hours(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                         r[h] = None
     return rows
 
+def filter_latest_day(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Filtra las filas para quedarse solo con el día más reciente."""
+    if not rows:
+        return rows
+    def ymd(r: Dict[str, Any]) -> tuple[int, int, int]:
+        try:
+            return int(r.get("ANO", 0)), int(r.get("MES", 0)), int(r.get("DIA", 0))
+        except Exception:
+            return (0, 0, 0)
+    last = max(ymd(r) for r in rows)
+    return [r for r in rows if ymd(r) == last]
+
 def unpivot_hours_to_long(rows: List[Dict[str, Any]], drop_empty: bool = True) -> List[Dict[str, Any]]:
     """
     Convierte columnas H01..H24 y V01..V24 a formato largo:
@@ -374,12 +389,15 @@ def main() -> int:
     # 6) Normalizar horas a numéricas
     rows = normalize_numeric_hours(rows)
 
-    # 7) CSV anchos
+    # 7) Quedarse solo con el último día disponible
+    rows = filter_latest_day(rows)
+
+    # 8) CSV anchos
     write_csv_plain(stamped_csv, rows)
     write_csv_plain(latest_csv, rows)
     print(f"💾 CSV ancho: {stamped_csv.name}, {latest_csv.name}")
 
-    # 8) Versión larga: Hora / Valor / Validacion
+    # 9) Versión larga: Hora / Valor / Validacion
     rows_flat = unpivot_hours_to_long(rows, drop_empty=True)
     if not rows_flat:
         # Fallback: usar el último latest.flat.csv no vacío de días anteriores
