@@ -58,7 +58,50 @@ jobs:
             exit 1
           fi
 
-      - name: Save file
+      - name: Generate latest.flat.csv
+        run: |
+          set -euo pipefail
+          mkdir -p datasets/calidad-aire
+          python3 - <<'PY'
+          import json, csv
+          from pathlib import Path
+          # Load fetched JSON
+          data = json.load(open('calair.json','r',encoding='utf-8'))
+          rows = []
+          if isinstance(data, dict):
+            graph = data.get('@graph') or data.get('graph') or []
+            if isinstance(graph, list):
+              for station in graph:
+                if not isinstance(station, dict):
+                  continue
+                station_id = station.get('@id','')
+                title = station.get('title','')
+                relation = station.get('relation','')
+                measurements = station.get('medicion', [])
+                if isinstance(measurements, list):
+                  for m in measurements:
+                    if not isinstance(m, dict):
+                      continue
+                    rows.append({
+                      'station_id': station_id,
+                      'title': title,
+                      'relation': relation,
+                      'magnitud': m.get('magnitud',''),
+                      'valor': m.get('valor'),
+                      'fecha': m.get('fecha',''),
+                    })
+          out = Path('datasets/calidad-aire/latest.flat.csv')
+          if rows:
+            fieldnames = list(rows[0].keys())
+            with out.open('w',encoding='utf-8',newline='') as f:
+              w = csv.DictWriter(f, fieldnames=fieldnames)
+              w.writeheader(); w.writerows(rows)
+          else:
+            out.write_text('',encoding='utf-8')
+          print(f'Wrote {len(rows)} rows to {out}')
+          PY
+
+      - name: Save dated JSON
         run: |
           set -euo pipefail
           YEAR='${{ steps.date.outputs.YEAR }}'
@@ -80,7 +123,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if [ -n "$(git status --porcelain)" ]; then
             git add datasets/calidad-aire
-            git commit -m "chore: calair acumulado yesterday ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }} [skip ci]"
+            git commit -m "chore: calair acumulado yesterday ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }} -> latest.flat.csv [skip ci]"
             git push
           else
             echo "No changes to commit."
