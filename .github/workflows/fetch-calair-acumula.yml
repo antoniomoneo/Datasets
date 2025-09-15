@@ -43,56 +43,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/calair_ult_filter_to_csv.py --input ult.json
-        run: |
-          set -euo pipefail
-          mkdir -p datasets/calidad-aire
-          python3 - <<'PY'
-          import json, csv
-          from pathlib import Path
-          rows = []
-          # Try to generate from acumulado if present with @graph
-          try:
-            data = json.load(open('calair.json','r',encoding='utf-8'))
-          except Exception:
-            data = None
-          if isinstance(data, dict):
-            graph = data.get('@graph') or data.get('graph') or []
-            if isinstance(graph, list):
-              for station in graph:
-                if not isinstance(station, dict):
-                  continue
-                station_id = station.get('@id','')
-                title = station.get('title','')
-                relation = station.get('relation','')
-                measurements = station.get('medicion', [])
-                if isinstance(measurements, list):
-                  for m in measurements:
-                    if not isinstance(m, dict):
-                      continue
-                    rows.append({
-                      'station_id': station_id,
-                      'title': title,
-                      'relation': relation,
-                      'magnitud': m.get('magnitud',''),
-                      'valor': m.get('valor'),
-                      'fecha': m.get('fecha',''),
-                    })
-          out = Path('datasets/calidad-aire/latest.flat.csv')
-          wrote_from_acc = False
-          if rows:
-            fieldnames = list(rows[0].keys())
-            with out.open('w',encoding='utf-8',newline='') as f:
-              w = csv.DictWriter(f, fieldnames=fieldnames)
-              w.writeheader(); w.writerows(rows)
-            wrote_from_acc = True
-          print(f'Acumulado rows: {len(rows)}')
-          PY
-
-          # Fallback: if acumulado empty, use ult endpoint
-          if ! [ -s datasets/calidad-aire/latest.flat.csv ]; then
-            echo "Fallback to calair_tiemporeal_ult (yesterday)"
-            python3 scripts/calair_latest_from_ult.py
-          fi
 
       - name: Clean temp JSON
         run: rm -f ult.json || true
@@ -108,4 +58,3 @@ jobs:
           else
             echo "No changes to commit."
           fi
-
