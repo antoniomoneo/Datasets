@@ -26,9 +26,7 @@ jobs:
 
       - name: Fetch ICS and write CSV
         env:
-          # You can override with repository secrets or env if needed.
-          # If the calendar is private, this step will fail unless you provide an accessible ICS URL.
-          ICS_URL: https://calendar.google.com/calendar/ical/c_41592e57472725b685e2d4ffb20f05c12f117f9ea2a46431ea621ed686f870ff%40group.calendar.google.com/public/full.ics
+          ICS_URL: ${{ secrets.HELLO_CAL_ICS_URL }}
         run: |
           python tangible-climate-calendar/fetch_calendar.py
 
