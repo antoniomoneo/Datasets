@@ -34,60 +34,15 @@ jobs:
           print(f"MONTH={y:%m}")
           print(f"DAY={y:%d}")
           PY
-
-
-      - name: Fetch acumula JSON with retry and fallback days
-        id: fetch
+      - name: Fetch ult JSON (pageSize=5000)
         run: |
           set -euo pipefail
-          baseY='${{ steps.date.outputs.YEAR }}'
-          baseM='${{ steps.date.outputs.MONTH }}'
-          baseD='${{ steps.date.outputs.DAY }}'
+          curl -sS -L -o ult.json 'https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal_ult.json?pageSize=5000'
 
-          sudo apt-get update -y >/dev/null
-          sudo apt-get install -y jq >/dev/null
-
-          # Try yesterday, then fallback up to 5 days back until records > 0
-          found=0
-          selY=""; selM=""; selD=""
-          for back in 0 1 2 3 4 5; do
-            read Y M D <<< "$(date -d "$baseY-$baseM-$baseD -${back} day" +'%%Y %%m %%d')"
-            URL="https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${M}&ANO=${Y}&DIA=${D}"
-            echo "Trying date ${Y}-${M}-${D}: $URL"
-
-            ok=0
-            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-              code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
-              if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
-                total=$(jq -r 'try (.totalRecords // ."pageRecords" // (."@graph"|length) // 0) catch 0' calair.json)
-                if [ "${total}" != "" ] && [ "${total}" -gt 0 ] 2>/dev/null; then
-                  echo "OK on attempt $attempt with ${total} records for ${Y}-${M}-${D}"
-                  ok=1
-                  break
-                fi
-                echo "JSON present (${code}) but no records yet (total=${total})."
-              fi
-              echo "Not ready (code=$code). Retrying in 10 minutes..."
-              sleep 600
-            done
-
-            if [ "$ok" = "1" ]; then
-              selY="$Y"; selM="$M"; selD="$D"; found=1
-              break
-            fi
-          done
-
-          if [ "$found" != "1" ]; then
-            echo "No available days with records in the last 6 days. Will fallback." >&2
-          :
-          fi
-
-          # Export selected date for logs (not used elsewhere)
-          echo "SELECTED_YEAR=$selY" >> "$GITHUB_OUTPUT"
-          echo "SELECTED_MONTH=$selM" >> "$GITHUB_OUTPUT"
-          echo "SELECTED_DAY=$selD" >> "$GITHUB_OUTPUT"
-
-      - name: Generate latest.flat.csv
+      - name: Generate latest.flat.csv from ult (ayer)
+        run: |
+          set -euo pipefail
+          python3 scripts/calair_ult_filter_to_csv.py --input ult.json
         run: |
           set -euo pipefail
           mkdir -p datasets/calidad-aire
@@ -140,7 +95,7 @@ jobs:
           fi
 
       - name: Clean temp JSON
-        run: rm -f calair.json || true
+        run: rm -f ult.json || true
 
       - name: Commit & push if changed
         run: |
