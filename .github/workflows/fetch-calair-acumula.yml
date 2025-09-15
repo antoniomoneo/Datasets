@@ -78,8 +78,8 @@ jobs:
           done
 
           if [ "$found" != "1" ]; then
-            echo "No available days with records in the last 6 days. Failing." >&2
-            exit 1
+            echo "No available days with records in the last 6 days. Will fallback." >&2
+          :
           fi
 
           # Export selected date for logs (not used elsewhere)
@@ -94,9 +94,12 @@ jobs:
           python3 - <<'PY'
           import json, csv
           from pathlib import Path
-          # Load fetched JSON
-          data = json.load(open('calair.json','r',encoding='utf-8'))
           rows = []
+          # Try to generate from acumulado if present with @graph
+          try:
+            data = json.load(open('calair.json','r',encoding='utf-8'))
+          except Exception:
+            data = None
           if isinstance(data, dict):
             graph = data.get('@graph') or data.get('graph') or []
             if isinstance(graph, list):
@@ -120,15 +123,21 @@ jobs:
                       'fecha': m.get('fecha',''),
                     })
           out = Path('datasets/calidad-aire/latest.flat.csv')
+          wrote_from_acc = False
           if rows:
             fieldnames = list(rows[0].keys())
             with out.open('w',encoding='utf-8',newline='') as f:
               w = csv.DictWriter(f, fieldnames=fieldnames)
               w.writeheader(); w.writerows(rows)
-          else:
-            out.write_text('',encoding='utf-8')
-          print(f'Wrote {len(rows)} rows to {out}')
+            wrote_from_acc = True
+          print(f'Acumulado rows: {len(rows)}')
           PY
+
+          # Fallback: if acumulado empty, use ult endpoint
+          if ! [ -s datasets/calidad-aire/latest.flat.csv ]; then
+            echo "Fallback to calair_tiemporeal_ult (yesterday)"
+            python3 scripts/calair_latest_from_ult.py
+          fi
 
       - name: Clean temp JSON
         run: rm -f calair.json || true
