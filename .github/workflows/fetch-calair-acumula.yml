@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      YEAR: ${{ steps.date.outputs.YEAR }}
+      MONTH: ${{ steps.date.outputs.MONTH }}
+      DAY: ${{ steps.date.outputs.DAY }}
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
@@ -117,3 +121,35 @@ jobs:
           else
             echo "No changes to commit."
           fi
+
+  notify-failure:
+    needs: fetch-accumulated-yesterday
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure email (if SMTP secrets configured)
+        if: ${{ secrets.SMTP_SERVER != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' && secrets.MAIL_FROM != '' && secrets.MAIL_TO != '' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          from: ${{ secrets.MAIL_FROM }}
+          to: ${{ secrets.MAIL_TO }}
+          subject: "CALAIR acumulado NO disponible: ${{ needs.fetch-accumulated-yesterday.outputs.YEAR }}-${{ needs.fetch-accumulated-yesterday.outputs.MONTH }}-${{ needs.fetch-accumulated-yesterday.outputs.DAY }}"
+          content_type: text/plain
+          body: |
+            No se pudo obtener el acumulado de calidad del aire.
+
+            Fecha (ayer, Europe/Madrid): ${{ needs.fetch-accumulated-yesterday.outputs.DAY }}/${{ needs.fetch-accumulated-yesterday.outputs.MONTH }}/${{ needs.fetch-accumulated-yesterday.outputs.YEAR }}
+            Endpoint: https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${{ needs.fetch-accumulated-yesterday.outputs.MONTH }}&ANO=${{ needs.fetch-accumulated-yesterday.outputs.YEAR }}&DIA=${{ needs.fetch-accumulated-yesterday.outputs.DAY }}
+
+            Workflow: ${{ github.workflow }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Ref: ${{ github.ref_name }}
+
+      - name: Missing SMTP secrets notice
+        if: ${{ !(secrets.SMTP_SERVER != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' && secrets.MAIL_FROM != '' && secrets.MAIL_TO != '') }}
+        run: |
+          echo "SMTP secrets not set. Configure repository secrets: SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM, MAIL_TO" >&2
