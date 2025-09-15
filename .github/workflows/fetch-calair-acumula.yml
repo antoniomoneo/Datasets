@@ -35,6 +35,7 @@ jobs:
           print(f"DAY={y:%d}")
           PY
 
+
       - name: Fetch acumula JSON with retry and fallback days
         id: fetch
         run: |
@@ -50,18 +51,7 @@ jobs:
           found=0
           selY=""; selM=""; selD=""
           for back in 0 1 2 3 4 5; do
-            # Compute date = base - back days using Python for reliability
-            read Y M D <<EOF
-$(python3 - <<'PY2'
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-import os
-Y=int(os.environ['baseY']); M=int(os.environ['baseM']); D=int(os.environ['baseD'])
-dt=datetime(Y,M,D,tzinfo=ZoneInfo('Europe/Madrid'))-timedelta(days=int(os.environ.get('back','0')))
-print(dt.strftime('%Y %m %d'))
-PY2
-)
-EOF
+            read Y M D <<< "$(date -d "$baseY-$baseM-$baseD -${back} day" +'%%Y %%m %%d')"
             URL="https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${M}&ANO=${Y}&DIA=${D}"
             echo "Trying date ${Y}-${M}-${D}: $URL"
 
@@ -69,7 +59,7 @@ EOF
             for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
               code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
               if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
-                total=$(jq -r 'try (.totalRecords // .pageRecords // (."@graph"|length) // 0) catch 0' calair.json)
+                total=$(jq -r 'try (.totalRecords // ."pageRecords" // (."@graph"|length) // 0) catch 0' calair.json)
                 if [ "${total}" != "" ] && [ "${total}" -gt 0 ] 2>/dev/null; then
                   echo "OK on attempt $attempt with ${total} records for ${Y}-${M}-${D}"
                   ok=1
