@@ -35,39 +35,67 @@ jobs:
           print(f"DAY={y:%d}")
           PY
 
-      - name: Fetch acumula JSON with retry
+      - name: Fetch acumula JSON with retry and fallback days
+        id: fetch
         run: |
           set -euo pipefail
-          YEAR='${{ steps.date.outputs.YEAR }}'
-          MONTH='${{ steps.date.outputs.MONTH }}'
-          DAY='${{ steps.date.outputs.DAY }}'
-          URL="https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${MONTH}&ANO=${YEAR}&DIA=${DAY}"
-          echo "Fetching: $URL"
+          baseY='${{ steps.date.outputs.YEAR }}'
+          baseM='${{ steps.date.outputs.MONTH }}'
+          baseD='${{ steps.date.outputs.DAY }}'
 
           sudo apt-get update -y >/dev/null
           sudo apt-get install -y jq >/dev/null
 
-          ok=0
-          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
-            # Success when HTTP 200, valid JSON, and has data rows
-            if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
-              total=$(jq -r 'try (.totalRecords // .pageRecords // (."@graph"|length) // 0) catch 0' calair.json)
-              if [ "${total}" != "" ] && [ "${total}" -gt 0 ] 2>/dev/null; then
-                echo "OK on attempt $attempt with ${total} records"
-                ok=1
-                break
+          # Try yesterday, then fallback up to 5 days back until records > 0
+          found=0
+          selY=""; selM=""; selD=""
+          for back in 0 1 2 3 4 5; do
+            # Compute date = base - back days using Python for reliability
+            read Y M D <<EOF
+$(python3 - <<'PY2'
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+import os
+Y=int(os.environ['baseY']); M=int(os.environ['baseM']); D=int(os.environ['baseD'])
+dt=datetime(Y,M,D,tzinfo=ZoneInfo('Europe/Madrid'))-timedelta(days=int(os.environ.get('back','0')))
+print(dt.strftime('%Y %m %d'))
+PY2
+)
+EOF
+            URL="https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${M}&ANO=${Y}&DIA=${D}"
+            echo "Trying date ${Y}-${M}-${D}: $URL"
+
+            ok=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
+              if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
+                total=$(jq -r 'try (.totalRecords // .pageRecords // (."@graph"|length) // 0) catch 0' calair.json)
+                if [ "${total}" != "" ] && [ "${total}" -gt 0 ] 2>/dev/null; then
+                  echo "OK on attempt $attempt with ${total} records for ${Y}-${M}-${D}"
+                  ok=1
+                  break
+                fi
+                echo "JSON present (${code}) but no records yet (total=${total})."
               fi
-              echo "JSON present but no records yet (total=${total})."
+              echo "Not ready (code=$code). Retrying in 10 minutes..."
+              sleep 600
+            done
+
+            if [ "$ok" = "1" ]; then
+              selY="$Y"; selM="$M"; selD="$D"; found=1
+              break
             fi
-            echo "Not ready (code=$code). Retrying in 10 minutes..."
-            sleep 600
           done
 
-          if [ "$ok" != "1" ]; then
-            echo "Data not available yet, failing job so it retries later." >&2
+          if [ "$found" != "1" ]; then
+            echo "No available days with records in the last 6 days. Failing." >&2
             exit 1
           fi
+
+          # Export selected date for logs (not used elsewhere)
+          echo "SELECTED_YEAR=$selY" >> "$GITHUB_OUTPUT"
+          echo "SELECTED_MONTH=$selM" >> "$GITHUB_OUTPUT"
+          echo "SELECTED_DAY=$selD" >> "$GITHUB_OUTPUT"
 
       - name: Generate latest.flat.csv
         run: |
