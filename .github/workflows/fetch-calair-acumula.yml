@@ -50,10 +50,15 @@ jobs:
           ok=0
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
+            # Success when HTTP 200, valid JSON, and has data rows
             if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
-              echo "OK on attempt $attempt"
-              ok=1
-              break
+              total=$(jq -r 'try (.totalRecords // .pageRecords // (."@graph"|length) // 0) catch 0' calair.json)
+              if [ "${total}" != "" ] && [ "${total}" -gt 0 ] 2>/dev/null; then
+                echo "OK on attempt $attempt with ${total} records"
+                ok=1
+                break
+              fi
+              echo "JSON present but no records yet (total=${total})."
             fi
             echo "Not ready (code=$code). Retrying in 10 minutes..."
             sleep 600
