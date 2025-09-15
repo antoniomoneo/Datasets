@@ -4,7 +4,7 @@
   "totalRecords" : 0,
   "pageRecords" : 0,
   "status" : 200,
-  "responseDate" : "2025-09-15T17:50:03",
+  "responseDate" : "2025-09-15T17:57:51",
   "first" : "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal_ult.json?pageSize=100&page=1&MES=09&ANO=2025&DIA=14",
   "last" : "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal_ult.json?pageSize=100&page=0&MES=09&ANO=2025&DIA=14",
   "self" : "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal_ult.json?pageSize=100&page=1&MES=09&ANO=2025&DIA=14",
