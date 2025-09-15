@@ -66,7 +66,7 @@ def flatten_record(r: Dict[str, Any]) -> List[Dict[str, Any]]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Filter calair_tiemporeal_ult to yesterday and write flattened CSV")
     ap.add_argument("--input", help="Path to input JSON (if omitted, fetch from URL)")
-    ap.add_argument("--output", default="datasets/data/calair/latest.flat.csv", help="Output CSV path")
+    ap.add_argument("--output", default="data/calair/latest.flat.csv", help="Output CSV path")
     args = ap.parse_args()
 
     if args.input:
