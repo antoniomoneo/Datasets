@@ -314,8 +314,8 @@ def main() -> int:
     latest_flat_csv  = day_dir / "latest.flat.csv"
 
     # 1) Descarga datos tiempo real con reintentos si el CSV plano queda vacío
-    max_retries = int((os.getenv("CALAIR_MAX_RETRIES") or "2").strip() or 2)
-    wait_seconds = int((os.getenv("CALAIR_WAIT_SECONDS") or "180").strip() or 180)
+    max_retries = int((os.getenv("CALAIR_MAX_RETRIES") or "1").strip() or 1)
+    wait_seconds = int((os.getenv("CALAIR_WAIT_SECONDS") or "60").strip() or 60)
     attempt = 0
     last_err: Exception | None = None
     payload = None
