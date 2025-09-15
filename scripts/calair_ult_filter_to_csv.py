@@ -23,42 +23,50 @@ def ymd_madrid_minus_1() -> tuple[str, str, str]:
     return f"{y:%Y}", f"{y:%m}", f"{y:%d}"
 
 
-def ensure_fields() -> List[str]:
-    base = [
-        "PROVINCIA",
-        "MUNICIPIO",
-        "ESTACION",
-        "MAGNITUD",
-        "PUNTO_MUESTREO",
-        "ANO",
-        "MES",
-        "DIA",
-    ]
-    hours = [f"H{i:02d}" for i in range(1, 25)]
-    flags = [f"V{i:02d}" for i in range(1, 25)]
-    return base + hours + flags
+HEADERS = [
+    "PROVINCIA",
+    "MUNICIPIO",
+    "ESTACION",
+    "MAGNITUD",
+    "PUNTO_MUESTREO",
+    "ANO",
+    "MES",
+    "DIA",
+    "Hora",
+    "Valor",
+    "Validacion",
+]
 
 
-def write_csv(path: Path, rows: List[Dict[str, Any]]):
-    fns = ensure_fields()
-    # include extra fields if present
-    extras: List[str] = []
-    for r in rows:
-        for k in r.keys():
-            if k not in fns and k not in extras:
-                extras.append(k)
-    fieldnames = fns + extras
-    with path.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: r.get(k, "") for k in fieldnames})
+def flatten_record(r: Dict[str, Any]) -> List[Dict[str, Any]]:
+    base = {
+        "PROVINCIA": r.get("PROVINCIA", ""),
+        "MUNICIPIO": r.get("MUNICIPIO", ""),
+        "ESTACION": r.get("ESTACION", ""),
+        "MAGNITUD": r.get("MAGNITUD", ""),
+        "PUNTO_MUESTREO": r.get("PUNTO_MUESTREO", ""),
+        "ANO": r.get("ANO", ""),
+        "MES": r.get("MES", ""),
+        "DIA": r.get("DIA", ""),
+    }
+    out: List[Dict[str, Any]] = []
+    for h in range(1, 25):
+        hh = f"{h:02d}"
+        val = r.get(f"H{hh}")
+        if val in (None, ""):
+            continue
+        row = dict(base)
+        row["Hora"] = h  # 1..24, without leading zero
+        row["Valor"] = val
+        row["Validacion"] = r.get(f"V{hh}", "")
+        out.append(row)
+    return out
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Filter calair_tiemporeal_ult to yesterday and write CSV")
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Filter calair_tiemporeal_ult to yesterday and write flattened CSV")
     ap.add_argument("--input", help="Path to input JSON (if omitted, fetch from URL)")
-    ap.add_argument("--output", default="datasets/calidad-aire/latest.flat.csv", help="Output CSV path")
+    ap.add_argument("--output", default="datasets/data/calair/latest.flat.csv", help="Output CSV path")
     args = ap.parse_args()
 
     if args.input:
@@ -70,10 +78,19 @@ def main():
     Y, M, D = ymd_madrid_minus_1()
     filtered = [r for r in recs if r.get("ANO") == Y and r.get("MES") == M and r.get("DIA") == D]
 
+    rows: List[Dict[str, Any]] = []
+    for r in filtered:
+        rows.extend(flatten_record(r))
+
     outp = Path(args.output)
     outp.parent.mkdir(parents=True, exist_ok=True)
-    write_csv(outp, filtered)
-    print(f"Wrote {len(filtered)} records for {Y}-{M}-{D} to {outp}")
+    with outp.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=HEADERS)
+        w.writeheader()
+        if rows:
+            w.writerows(rows)
+    print(f"Wrote {len(rows)} flattened rows for {Y}-{M}-{D} to {outp}")
+    return 0
 
 
 if __name__ == "__main__":
