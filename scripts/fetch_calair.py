@@ -8,7 +8,10 @@ from urllib.request import Request, urlopen
 from typing import Dict, List, Tuple, Any
 
 # ========= Config =========
-API_URL = "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000"
+API_URL = (
+    "https://datos.madrid.es/egob/CalidadDelAire/"
+    "listcalair_tiemporeal_ult?formato=json"
+)
 
 # Catálogo local de estaciones (ya en tu repo)
 LOCAL_STATIONS_CSV = Path("datasets/meta/informacion_estaciones_red_calidad_aire.csv")
@@ -201,6 +204,18 @@ def normalize_numeric_hours(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                         r[h] = None
     return rows
 
+def filter_latest_day(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Filtra las filas para quedarse solo con el día más reciente."""
+    if not rows:
+        return rows
+    def ymd(r: Dict[str, Any]) -> tuple[int, int, int]:
+        try:
+            return int(r.get("ANO", 0)), int(r.get("MES", 0)), int(r.get("DIA", 0))
+        except Exception:
+            return (0, 0, 0)
+    last = max(ymd(r) for r in rows)
+    return [r for r in rows if ymd(r) == last]
+
 def unpivot_hours_to_long(rows: List[Dict[str, Any]], drop_empty: bool = True) -> List[Dict[str, Any]]:
     """
     Convierte columnas H01..H24 y V01..V24 a formato largo:
@@ -299,8 +314,8 @@ def main() -> int:
     latest_flat_csv  = day_dir / "latest.flat.csv"
 
     # 1) Descarga datos tiempo real con reintentos si el CSV plano queda vacío
-    max_retries = int((os.getenv("CALAIR_MAX_RETRIES") or "2").strip() or 2)
-    wait_seconds = int((os.getenv("CALAIR_WAIT_SECONDS") or "180").strip() or 180)
+    max_retries = int((os.getenv("CALAIR_MAX_RETRIES") or "1").strip() or 1)
+    wait_seconds = int((os.getenv("CALAIR_WAIT_SECONDS") or "60").strip() or 60)
     attempt = 0
     last_err: Exception | None = None
     payload = None
@@ -332,14 +347,29 @@ def main() -> int:
             time.sleep(wait_seconds)
 
     if payload is None and last_err is not None:
-        # Fallo duro de red en todos los intentos: dejamos diagnóstico mínimo y salimos
+        # Fallo duro de red en todos los intentos: dejamos diagnóstico mínimo
         err = {"error": str(last_err), "when": ts, "url": API_URL}
         stamped_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
         latest_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
         for p in (stamped_csv, latest_csv, stamped_flat_csv, latest_flat_csv):
             write_csv_plain(p, [])
-        print("❌ Abortado tras reintentos por error de red.")
-        return 1
+
+        # Intentar fallback con el último latest.flat.csv no vacío
+        cand = _search_last_nonempty_latest_flat(Path("data/calair"))
+        if cand:
+            print(f"🔁 Fallback tras error de red: {cand}")
+            data = cand.read_text(encoding="utf-8")
+            stamped_flat_csv.write_text(data, encoding="utf-8")
+            latest_flat_csv.write_text(data, encoding="utf-8")
+            root_latest_flat = Path("data/calair/latest.flat.csv")
+            root_latest_flat.write_text(data, encoding="utf-8")
+            print("✅ Fallback aplicado y copias actualizadas.")
+        else:
+            root_latest_flat = Path("data/calair/latest.flat.csv")
+            write_csv_plain(root_latest_flat, [])
+
+        print("⚠️ Abortado tras reintentos por error de red; saliendo con éxito.")
+        return 0
 
     # 4) Catálogo de estaciones (local)
     station_map = load_station_catalog()
@@ -374,12 +404,15 @@ def main() -> int:
     # 6) Normalizar horas a numéricas
     rows = normalize_numeric_hours(rows)
 
-    # 7) CSV anchos
+    # 7) Quedarse solo con el último día disponible
+    rows = filter_latest_day(rows)
+
+    # 8) CSV anchos
     write_csv_plain(stamped_csv, rows)
     write_csv_plain(latest_csv, rows)
     print(f"💾 CSV ancho: {stamped_csv.name}, {latest_csv.name}")
 
-    # 8) Versión larga: Hora / Valor / Validacion
+    # 9) Versión larga: Hora / Valor / Validacion
     rows_flat = unpivot_hours_to_long(rows, drop_empty=True)
     if not rows_flat:
         # Fallback: usar el último latest.flat.csv no vacío de días anteriores

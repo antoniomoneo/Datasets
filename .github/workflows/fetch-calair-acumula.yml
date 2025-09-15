@@ -1,0 +1,87 @@
+name: Fetch calair acumulado (yesterday)
+
+on:
+  schedule:
+    - cron: "15 7 * * *"  # 07:15 UTC ≈ 09:15 CEST
+  workflow_dispatch:
+
+jobs:
+  fetch-accumulated-yesterday:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: main
+
+      - name: Compute yesterday in Europe/Madrid
+        id: date
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          y = (datetime.now(ZoneInfo("Europe/Madrid")) - timedelta(days=1))
+          print(f"YEAR={y:%Y}")
+          print(f"MONTH={y:%m}")
+          print(f"DAY={y:%d}")
+          PY
+
+      - name: Fetch acumula JSON with retry
+        run: |
+          set -euo pipefail
+          YEAR='${{ steps.date.outputs.YEAR }}'
+          MONTH='${{ steps.date.outputs.MONTH }}'
+          DAY='${{ steps.date.outputs.DAY }}'
+          URL="https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${MONTH}&ANO=${YEAR}&DIA=${DAY}"
+          echo "Fetching: $URL"
+
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y jq >/dev/null
+
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
+            if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
+              echo "OK on attempt $attempt"
+              ok=1
+              break
+            fi
+            echo "Not ready (code=$code). Retrying in 10 minutes..."
+            sleep 600
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "Data not available yet, failing job so it retries later." >&2
+            exit 1
+          fi
+
+      - name: Save file
+        run: |
+          set -euo pipefail
+          YEAR='${{ steps.date.outputs.YEAR }}'
+          MONTH='${{ steps.date.outputs.MONTH }}'
+          DAY='${{ steps.date.outputs.DAY }}'
+          mkdir -p datasets/calidad-aire/"$YEAR"/"$MONTH"
+          dest="datasets/calidad-aire/$YEAR/$MONTH/$DAY.json"
+          if [ -f "$dest" ] && cmp -s calair.json "$dest"; then
+            echo "No changes: $dest already up to date."
+            rm -f calair.json
+          else
+            mv calair.json "$dest"
+            echo "Saved to $dest"
+          fi
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add datasets/calidad-aire
+            git commit -m "chore: calair acumulado yesterday ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }} [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi

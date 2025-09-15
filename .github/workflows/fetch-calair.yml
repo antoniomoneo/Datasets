@@ -1,71 +1,77 @@
-name: Fetch Madrid Air Quality (yesterday)
+name: Fetch calair_tiemporeal (daily)
 
-on:
+'on':
   schedule:
-    - cron: "15 7 * * *"  # 07:15 UTC ≈ 09:15 CEST
+    - cron: "0,15,30,45 21,22,23 * * *"   # 23:00→01:45 Madrid en verano (UTC+2)
+    - cron: "0,15,30,45 22,23,0 * * *"    # 23:00→01:45 Madrid en invierno (UTC+1)
   workflow_dispatch:
+    inputs:
+      max_retries:
+        description: "CALAIR_MAX_RETRIES (default 1)"
+        required: false
+        default: "1"
+      wait_seconds:
+        description: "CALAIR_WAIT_SECONDS (default 60)"
+        required: false
+        default: "60"
 
 jobs:
-  fetch:
+  fetch-and-commit:
+    timeout-minutes: 7
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
+      - name: Checkout default branch
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          fetch-depth: 1
+          ref: main
 
-      - name: Compute yesterday in Europe/Madrid
-        id: date
+      - name: Show HEAD and script version
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          from datetime import datetime, timedelta
-          from zoneinfo import ZoneInfo
-          y = (datetime.now(ZoneInfo("Europe/Madrid")) - timedelta(days=1))
-          print(f"YEAR={y:%Y}")
-          print(f"MONTH={y:%m}")
-          print(f"DAY={y:%d}")
-          PY
+          git log -1 --oneline
+          echo "==== scripts/fetch_calair.py (primeras 60 líneas) ===="
+          sed -n '1,60p' scripts/fetch_calair.py || true
 
-      - name: Fetch dataset with retry
+      - name: Quick API sanity (curl)
         run: |
-          set -euo pipefail
-          YEAR='${{ steps.date.outputs.YEAR }}'
-          MONTH='${{ steps.date.outputs.MONTH }}'
-          DAY='${{ steps.date.outputs.DAY }}'
-          URL="https://datos.madrid.es/egob/catalogo/300755-12751602-calidad-aire-tiempo-real-acumula.json?MES=${MONTH}&ANO=${YEAR}&DIA=${DAY}"
-          echo "Fetching: $URL"
+          set -e
+          echo "HEADERS >>>"
+          curl -I --retry 3 --max-time 30 "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000" || true
+          echo "SAMPLE (first 500 bytes) >>>"
+          curl -s --retry 3 --max-time 60 "https://ciudadesabiertas.madrid.es/dynamicAPI/API/query/calair_tiemporeal.json?pageSize=5000" | head -c 500 || true
+          echo
 
-          sudo apt-get update -y >/dev/null
-          sudo apt-get install -y jq >/dev/null
-
-          for attempt in 1 2 3 4 5 6; do
-            code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
-            if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
-              echo "OK on attempt $attempt"
-              break
-            fi
-            echo "Not ready (code=$code). Retrying in 10 minutes..."
-            sleep 600
-          done
-
-          if ! [ -s calair.json ]; then
-            echo "Data not available yet, failing job so it retries later." >&2
-            exit 1
-          fi
-
-      - name: Save file
-        run: |
-          set -euo pipefail
-          YEAR='${{ steps.date.outputs.YEAR }}'
-          MONTH='${{ steps.date.outputs.MONTH }}'
-          DAY='${{ steps.date.outputs.DAY }}'
-          mkdir -p datasets/calidad-aire/"$YEAR"/"$MONTH"
-          mv calair.json datasets/calidad-aire/"$YEAR"/"$MONTH"/"$DAY".json
-          echo "Saved to datasets/calidad-aire/$YEAR/$MONTH/$DAY.json"
-
-      - name: Commit and push
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          commit_message: "calidad-aire: fetch ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }} (Europe/Madrid yesterday)"
-          file_pattern: datasets/calidad-aire/**
+          python-version: "3.11"
 
+      - name: Run fetch script (JSON + CSV + history.csv)
+        run: |
+          set -e
+          # Reintentos y espera configurables (inputs -> env)
+          export CALAIR_MAX_RETRIES="${{ github.event.inputs.max_retries || '1' }}"
+          export CALAIR_WAIT_SECONDS="${{ github.event.inputs.wait_seconds || '60' }}"
+          python scripts/fetch_calair.py
+
+      - name: List output files
+        run: |
+          echo "=== Tree data/calair ==="
+          ls -Ral data/calair || true
+          echo "=== history.csv head/tail ==="
+          head -n 3 data/calair/history.csv || true
+          tail -n 3 data/calair/history.csv || true
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add data/calair
+            git commit -m "chore: daily calair (json+csv) + update history.csv [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
