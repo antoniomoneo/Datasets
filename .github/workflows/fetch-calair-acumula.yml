@@ -101,29 +101,16 @@ jobs:
           print(f'Wrote {len(rows)} rows to {out}')
           PY
 
-      - name: Save dated JSON
-        run: |
-          set -euo pipefail
-          YEAR='${{ steps.date.outputs.YEAR }}'
-          MONTH='${{ steps.date.outputs.MONTH }}'
-          DAY='${{ steps.date.outputs.DAY }}'
-          mkdir -p datasets/calidad-aire/"$YEAR"/"$MONTH"
-          dest="datasets/calidad-aire/$YEAR/$MONTH/$DAY.json"
-          if [ -f "$dest" ] && cmp -s calair.json "$dest"; then
-            echo "No changes: $dest already up to date."
-            rm -f calair.json
-          else
-            mv calair.json "$dest"
-            echo "Saved to $dest"
-          fi
+      - name: Clean temp JSON
+        run: rm -f calair.json || true
 
       - name: Commit & push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain)" ]; then
-            git add datasets/calidad-aire
-            git commit -m "chore: calair acumulado yesterday ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }} -> latest.flat.csv [skip ci]"
+          if [ -n "$(git status --porcelain datasets/calidad-aire/latest.flat.csv)" ]; then
+            git add datasets/calidad-aire/latest.flat.csv
+            git commit -m "chore: calair acumulado yesterday -> latest.flat.csv [skip ci]"
             git push
           else
             echo "No changes to commit."
