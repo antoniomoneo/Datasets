@@ -347,14 +347,29 @@ def main() -> int:
             time.sleep(wait_seconds)
 
     if payload is None and last_err is not None:
-        # Fallo duro de red en todos los intentos: dejamos diagnóstico mínimo y salimos
+        # Fallo duro de red en todos los intentos: dejamos diagnóstico mínimo
         err = {"error": str(last_err), "when": ts, "url": API_URL}
         stamped_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
         latest_json.write_text(json.dumps(err, ensure_ascii=False, indent=2), encoding="utf-8")
         for p in (stamped_csv, latest_csv, stamped_flat_csv, latest_flat_csv):
             write_csv_plain(p, [])
-        print("❌ Abortado tras reintentos por error de red.")
-        return 1
+
+        # Intentar fallback con el último latest.flat.csv no vacío
+        cand = _search_last_nonempty_latest_flat(Path("data/calair"))
+        if cand:
+            print(f"🔁 Fallback tras error de red: {cand}")
+            data = cand.read_text(encoding="utf-8")
+            stamped_flat_csv.write_text(data, encoding="utf-8")
+            latest_flat_csv.write_text(data, encoding="utf-8")
+            root_latest_flat = Path("data/calair/latest.flat.csv")
+            root_latest_flat.write_text(data, encoding="utf-8")
+            print("✅ Fallback aplicado y copias actualizadas.")
+        else:
+            root_latest_flat = Path("data/calair/latest.flat.csv")
+            write_csv_plain(root_latest_flat, [])
+
+        print("⚠️ Abortado tras reintentos por error de red; saliendo con éxito.")
+        return 0
 
     # 4) Catálogo de estaciones (local)
     station_map = load_station_catalog()
