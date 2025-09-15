@@ -3,10 +3,12 @@ name: Fetch calair acumulado (yesterday)
 on:
   schedule:
     - cron: "15 7 * * *"  # 07:15 UTC ≈ 09:15 CEST
+    - cron: "15 8 * * *"  # 08:15 UTC ≈ 10:15 CEST
   workflow_dispatch:
 
 jobs:
   fetch-accumulated-yesterday:
+    timeout-minutes: 130
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -42,7 +44,7 @@ jobs:
           sudo apt-get install -y jq >/dev/null
 
           ok=0
-          for attempt in 1 2 3 4 5 6; do
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             code=$(curl -sS -w '%{http_code}' -L -o calair.json "$URL" || echo 000)
             if [ "$code" = "200" ] && [ -s calair.json ] && jq -e . calair.json >/dev/null 2>&1; then
               echo "OK on attempt $attempt"
