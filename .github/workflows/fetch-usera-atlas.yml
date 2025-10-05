@@ -1,0 +1,63 @@
+name: Fetch Usera ADRH indicators
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install runtime dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade certifi
+
+      - name: Fetch ADRH indicators for Usera
+        run: |
+          set -euo pipefail
+          python datasets/usera-datalab/fetch_usera_atlas.py \
+            --province Madrid \
+            --district 2807912 \
+            --output-dir datasets/usera-datalab/data \
+            --from-year 2016 \
+            --to-year 2022 \
+            --fmt csv_bd \
+            --verbose
+
+      - name: Upload CSV outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usera-adrh-csv
+          path: datasets/usera-datalab/data
+          if-no-files-found: warn
+
+      - name: Commit and push if changed
+        run: |
+          set -euo pipefail
+          if ! git status --porcelain datasets/usera-datalab/data >/tmp/changes.txt; then
+            cat /tmp/changes.txt
+          fi
+          if [ ! -s /tmp/changes.txt ]; then
+            echo "No data changes detected"
+            exit 0
+          fi
+          cat /tmp/changes.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datasets/usera-datalab/data
+          git commit -m "chore(usera): refresh ADRH extracts"
+          git push
