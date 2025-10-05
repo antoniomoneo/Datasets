@@ -255,7 +255,7 @@ def iter_table_rows(
     *,
     fmt: str,
     delimiter: str = "\t",
-    encoding: str = "latin-1",
+    encoding: str = "utf-8-sig",
 ) -> Iterator[Dict[str, str]]:
     if fmt not in SUPPORTED_FMTS:
         raise ValueError(f"Formato no soportado: {fmt}")
