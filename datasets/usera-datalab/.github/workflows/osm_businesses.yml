@@ -1,0 +1,68 @@
+name: Generar comercios OSM
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_year:
+        description: "Primer año a consultar (inclusive)"
+        required: false
+        default: "2015"
+      to_year:
+        description: "Último año a consultar (inclusive)"
+        required: false
+        default: ""
+      area_tags:
+        description: "Etiquetas clave=valor separadas por comas (p. ej. name=Usera,boundary=administrative)"
+        required: false
+        default: ""
+      output_path:
+        description: "Ruta del CSV de salida"
+        required: false
+        default: "data/osm_usera_comercios.csv"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Ejecutar extracción OSM
+        env:
+          FROM_YEAR: ${{ inputs.from_year }}
+          TO_YEAR: ${{ inputs.to_year }}
+          AREA_TAGS: ${{ inputs.area_tags }}
+          OUTPUT_PATH: ${{ inputs.output_path }}
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ -n "${FROM_YEAR}" ]; then
+            ARGS+=("--from-year" "${FROM_YEAR}")
+          fi
+          if [ -n "${TO_YEAR}" ]; then
+            ARGS+=("--to-year" "${TO_YEAR}")
+          fi
+          if [ -n "${AREA_TAGS}" ]; then
+            IFS=',' read -ra TAGS <<<"${AREA_TAGS}"
+            for raw in "${TAGS[@]}"; do
+              tag_trimmed="$(echo "${raw}" | xargs)"
+              if [ -n "${tag_trimmed}" ]; then
+                ARGS+=("--area-tag" "${tag_trimmed}")
+              fi
+            done
+          fi
+          if [ -n "${OUTPUT_PATH}" ]; then
+            ARGS+=("--output" "${OUTPUT_PATH}")
+          fi
+          python fetch_osm_businesses.py "${ARGS[@]}"
+
+      - name: Publicar CSV como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-businesses
+          path: ${{ inputs.output_path != '' && inputs.output_path || 'data/osm_usera_comercios.csv' }}
