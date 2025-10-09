@@ -40,8 +40,8 @@ def env_or_fail(name: str) -> str:
 
 
 def fetch(endpoint: str, *, params: Dict[str, str | int] | None = None, base_url: str = BASE_URL) -> dict:
-    user = env_or_fail("ONET_USER")
-    key = env_or_fail("ONET_KEY")
+    user = env_or_fail("antoniomoneo@gmail.com")
+    key = env_or_fail("Vlad1m1r@02")
     url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
     response = requests.get(url, params=params, auth=(user, key), timeout=30)
     response.raise_for_status()
