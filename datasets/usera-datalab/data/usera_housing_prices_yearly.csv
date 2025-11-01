@@ -1,0 +1,81 @@
+year,metric,series_id,series_label,methodology,source,territory_level,territory_code,territory_name,observations,average_price_eur_m2
+2010,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,5,10.42
+2011,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,10.23
+2012,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,8.94
+2013,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,8.47
+2014,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,8.28
+2015,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,8.56
+2016,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,9.05
+2017,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,9.73
+2018,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,10.77
+2019,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,12.1
+2020,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,12.02
+2021,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,11.22
+2022,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,12.38
+2023,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,13.56
+2024,rent_price,0504030000213,Precio alquiler vivienda (€/m2) - distritos,Idealista (alquiler distritos),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,16.15
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,1,1809.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,1,1626.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,1,1821.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,1,2132.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,12,2122.33
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,12,2102.08
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,121,121. Orcasitas,9,2491.67
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,1,1728.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,1,1676.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,1,1874.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,1,1858.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,11,2201.64
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,11,2435.91
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,122,122. Orcasur,9,2438.22
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,1,2041.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,1,1723.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,1,1874.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,1,2170.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,12,2199.75
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,12,2409.17
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,123,123. San Fermín,9,2793.67
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,1,2180.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,1,1927.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,1,1992.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,1,2186.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,12,2388.25
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,12,2804.08
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,124,124. Almendrales,9,3183.78
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,1,2209.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,1,2102.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,1,2311.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,1,2455.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,12,2465.5
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,12,2848.08
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,125,125. Moscardó,9,3455.89
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,1,1889.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,1,1979.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,1,1964.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,1,1878.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,7,2083.43
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,11,2543.36
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,126,126. Zofío,9,3057.22
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,1,2097.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,1,2004.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,1,1940.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,1,2108.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,12,2152.08
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,12,2447.75
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,barrio,127,127. Pradolongo,9,2892.89
+2010,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,2295.5
+2011,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,2062.75
+2012,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1778.0
+2013,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1667.25
+2014,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1523.0
+2015,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1512.25
+2016,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1493.75
+2017,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1618.0
+2018,sale_price,0504030000151,Precio vivienda segunda mano (€/m2) - metodología Idealista 2000-2018,Idealista (antigua metodología),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,4,1901.75
+2019,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,1,2043.0
+2020,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,1,1942.0
+2021,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,1,2013.0
+2022,sale_price,0504030000202,Precio vivienda segunda mano (€/m2) - 2019-2022,Idealista (revisión 2019),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,1,2182.0
+2023,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,2252.92
+2024,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,12,2523.83
+2025,sale_price,0504030000153,Precio vivienda segunda mano (€/m2) - metodología actual,Idealista (metodología vigente),Banco de Datos del Ayuntamiento de Madrid,district,12,12. Usera,9,2978.11
