@@ -44,6 +44,33 @@ MONTH_TO_INDEX = {name: idx for idx, name in enumerate(MONTHS_ORDER, start=1)}
 
 
 
+def parse_year_from_label(label: str) -> Optional[int]:
+    """Extract a four-digit year from a label if present."""
+
+    cleaned = label.strip()
+    if not cleaned:
+        return None
+    match = re.search(r"(19|20)\d{2}", cleaned)
+    return int(match.group(0)) if match else None
+
+
+def normalize_price(raw_value: str, metric: str) -> Optional[float]:
+    """Convert Banco de Datos price strings into floats."""
+
+    value = raw_value.strip()
+    if not value or value in {"..", "-", "0"}:
+        return None
+    if metric == "sale_price":
+        normalized = value.replace(".", "").replace(",", ".")
+    else:
+        normalized = value.replace(",", ".")
+    try:
+        price = float(normalized)
+    except ValueError:
+        return None
+    return price
+
+
 @dataclass
 class ValueInfo:
     id: str
@@ -192,6 +219,69 @@ def select_barrio_ids(variable: VariableInfo, district_value_id: str) -> List[Va
     return barrios
 
 
+def build_time_mapping(time_var: VariableInfo) -> tuple[Dict[str, int], List[str]]:
+    """Return mapping from time labels to month indices and ordered value ids."""
+
+    def quarter_label_to_month(label: str) -> Optional[int]:
+        lower = label.lower()
+        quarter_words = {
+            "primer": 3,
+            "1er": 3,
+            "1º": 3,
+            "segundo": 6,
+            "2º": 6,
+            "tercer": 9,
+            "3º": 9,
+            "cuarto": 12,
+            "4º": 12,
+        }
+        if "trimestre" in lower:
+            for prefix, month in quarter_words.items():
+                if lower.startswith(prefix):
+                    return month
+            match = re.search(r"(\d)", lower)
+            if match:
+                digit = int(match.group(1))
+                if 1 <= digit <= 4:
+                    return digit * 3
+        return None
+
+    def semester_label_to_month(label: str) -> Optional[int]:
+        lower = label.lower()
+        if "semestre" in lower:
+            if lower.startswith(("primer", "1er", "1º")):
+                return 6
+            if lower.startswith(("segundo", "2º")):
+                return 12
+        return None
+
+    mapping: Dict[str, int] = {}
+    id_pairs: List[tuple[int, str]] = []
+
+    for val in time_var.values:
+        label = val.label.strip()
+        month_idx: Optional[int] = MONTH_TO_INDEX.get(label)
+        if month_idx is None:
+            month_idx = quarter_label_to_month(label)
+        if month_idx is None:
+            month_idx = semester_label_to_month(label)
+        if month_idx is None:
+            shortened = label.split()[0]
+            month_idx = MONTH_TO_INDEX.get(shortened)
+        if month_idx is None:
+            logging.debug("Skipping time label '%s' (%s) because it does not map to a month", label, val.id)
+            continue
+        mapping[label] = month_idx
+        id_pairs.append((month_idx, val.id))
+
+    if not mapping:
+        raise ValueError("Unable to map any time labels for variable '%s'" % time_var.name)
+
+    id_pairs.sort(key=lambda item: item[0])
+    ordered_ids = [val_id for _, val_id in id_pairs]
+    return mapping, ordered_ids
+
+
 def parse_banco_csv(csv_bytes: bytes) -> List[List[str]]:
     text = csv_bytes.decode("utf-8-sig")
     reader = csv.reader(io.StringIO(text), delimiter=';')
@@ -207,12 +297,16 @@ def extract_monthly_records(
     methodology: str,
     source_label: str,
     include_barrio: bool,
+    time_label_map: Optional[Dict[str, int]] = None,
 ) -> List[Dict[str, object]]:
     """Transform raw CSV rows into normalized monthly records."""
 
     header_idx = None
+    month_headers = set(MONTH_TO_INDEX.keys())
+    if time_label_map:
+        month_headers.update(time_label_map.keys())
     for idx, row in enumerate(rows):
-        if any(cell in MONTH_TO_INDEX for cell in row):
+        if any(cell.strip() in month_headers for cell in row):
             header_idx = idx
             break
     if header_idx is None:
@@ -229,35 +323,42 @@ def extract_monthly_records(
     else:
         descriptor_names = ["year", "district"]
     if descriptor_count != len(descriptor_names):
-        descriptor_names = [f"descriptor_{i}" for i in range(descriptor_count)]
+        if include_barrio and descriptor_count == 2:
+            descriptor_names = ["district", "barrio"]
+        elif not include_barrio and descriptor_count == 1:
+            descriptor_names = ["district"]
+        else:
+            descriptor_names = [f"descriptor_{i}" for i in range(descriptor_count)]
 
     records: List[Dict[str, object]] = []
 
     for row in rows[header_idx + 1 :]:
-        if not row or not row[0].strip().isdigit():
+        if not row:
+            continue
+        if descriptor_count and not any(cell.strip() for cell in row[:descriptor_count]):
             continue
         descriptors = row[:descriptor_count]
         month_values = row[descriptor_count : descriptor_count + len(month_names)]
         descriptor_map = {name: value.strip() for name, value in zip(descriptor_names, descriptors)}
-        try:
-            year = int(descriptor_map.get("year", ""))
-        except ValueError:
-            continue
+        base_year = parse_year_from_label(descriptor_map.get("year", ""))
         district_label = descriptor_map.get("district", "").strip()
         barrio_label = descriptor_map.get("barrio", "").strip() if include_barrio else None
 
         for month_name, raw_value in zip(month_names, month_values):
             value_clean = raw_value.strip()
-            price: Optional[float]
-            if not value_clean or value_clean == ".." or value_clean == "0":
-                price = None
-            else:
-                try:
-                    price = float(value_clean.replace(',', '.'))
-                except ValueError:
-                    price = None
-            month_idx = MONTH_TO_INDEX.get(month_name)
+            label_clean = month_name.strip()
+            price = normalize_price(value_clean, metric)
+            month_idx: Optional[int] = None
+            if time_label_map:
+                month_idx = time_label_map.get(label_clean)
             if month_idx is None:
+                month_idx = MONTH_TO_INDEX.get(label_clean)
+            if month_idx is None or not (1 <= month_idx <= 12):
+                continue
+            entry_year = base_year
+            if entry_year is None:
+                entry_year = parse_year_from_label(label_clean)
+            if entry_year is None:
                 continue
             territory_level = "district"
             territory_code = None
@@ -277,11 +378,11 @@ def extract_monthly_records(
                 code_match = re.match(r"(\d+)", district_label)
                 territory_code = code_match.group(1) if code_match else None
 
-            date_value = dt.date(year, month_idx, 1)
+            date_value = dt.date(entry_year, month_idx, 1)
             records.append(
                 {
                     "date": date_value.isoformat(),
-                    "year": year,
+                    "year": entry_year,
                     "month": month_idx,
                     "metric": metric,
                     "series_id": series_id,
@@ -414,6 +515,15 @@ def fetch_series_records(config: SeriesConfig, district_label: str) -> List[Dict
     year_var = find_variable_by_name(variables, "Año")
     district_var = find_variable_by_name(variables, "Distrito")
 
+    year_ids = select_year_ids(year_var, config.years)
+    district_id = select_district_id(district_var, district_label)
+    include_barrio = config.include_barrio and any(var.name.lower() == "barrio" for var in variables.values())
+    barrio_var: Optional[VariableInfo] = None
+    barrios: List[ValueInfo] = []
+    if include_barrio:
+        barrio_var = find_variable_by_name(variables, "Barrio")
+        barrios = select_barrio_ids(barrio_var, district_id)
+
     time_var: Optional[VariableInfo] = None
     for candidate in ("Mes", "Trimestre", "Semestre"):
         try:
@@ -421,29 +531,35 @@ def fetch_series_records(config: SeriesConfig, district_label: str) -> List[Dict
             break
         except KeyError:
             continue
-    if time_var is None:
-        raise KeyError("No supported time variable (Mes/Trimestre/Semestre) found")
 
-    year_ids = select_year_ids(year_var, config.years)
-    district_id = select_district_id(district_var, district_label)
-    time_label_map, time_value_ids = build_time_mapping(time_var)
+    time_label_map: Optional[Dict[str, int]] = None
+    row_vars: List[str]
+    col_vars: List[str]
+    value_ids: List[str]
 
-    value_ids: List[str] = []
-    value_ids.extend(year_ids)
-    value_ids.append(district_id)
+    if time_var is not None:
+        mapped_labels, time_value_ids = build_time_mapping(time_var)
+        time_label_map = mapped_labels
+        row_vars = [year_var.id, district_var.id]
+        value_ids = list(year_ids)
+        value_ids.append(district_id)
+        if include_barrio and barrio_var is not None:
+            row_vars.append(barrio_var.id)
+            value_ids.extend(val.id for val in barrios)
+        value_ids.extend(time_value_ids)
+        col_vars = [time_var.id]
+    else:
+        # Some series (e.g. 0504030000202) only publish annual values (December) with year columns.
+        time_label_map = {str(year): 12 for year in config.years}
+        row_vars = [district_var.id]
+        value_ids = [district_id]
+        if include_barrio and barrio_var is not None:
+            row_vars.append(barrio_var.id)
+            value_ids.extend(val.id for val in barrios)
+        value_ids.extend(year_ids)
+        col_vars = [year_var.id]
 
-    row_vars: List[str] = [year_var.id, district_var.id]
-
-    include_barrio = config.include_barrio and any(var.name.lower() == "barrio" for var in variables.values())
-    if include_barrio:
-        barrio_var = find_variable_by_name(variables, "Barrio")
-        barrios = select_barrio_ids(barrio_var, district_id)
-        value_ids.extend(val.id for val in barrios)
-        row_vars.append(barrio_var.id)
-
-    value_ids.extend(time_value_ids)
-
-    client.set_filters(row_vars=row_vars, col_vars=[time_var.id], value_ids=value_ids)
+    client.set_filters(row_vars=row_vars, col_vars=col_vars, value_ids=value_ids)
     csv_bytes = client.download_csv()
     rows = parse_banco_csv(csv_bytes)
     records = extract_monthly_records(
