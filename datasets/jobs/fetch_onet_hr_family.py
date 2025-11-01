@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import argparse
 import csv
+import getpass
 import json
 import os
 import sys
 import time
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 import requests
 
@@ -31,17 +33,27 @@ DEFAULT_JSON_PATH = DEFAULT_DATA_DIR / "human_resources_buckets.json"
 DEFAULT_CSV_PATH = DEFAULT_DATA_DIR / "human_resources_buckets.csv"
 
 
-def env_or_fail(name: str) -> str:
+def credential_from_env_or_prompt(name: str, prompt: str, *, secret: bool = False) -> str:
     value = os.getenv(name)
+    if value:
+        return value
+    prompt_fn = getpass.getpass if secret else input
+    value = prompt_fn(prompt)
     if not value:
-        print(f"Environment variable {name} is required", file=sys.stderr)
+        print(f"Credential for {name} is required", file=sys.stderr)
         sys.exit(1)
     return value
 
 
+@lru_cache(maxsize=1)
+def get_onet_auth() -> Tuple[str, str]:
+    user = credential_from_env_or_prompt("ONET_USER", "O*NET username: ")
+    key = credential_from_env_or_prompt("ONET_KEY", "O*NET key: ", secret=True)
+    return user, key
+
+
 def fetch(endpoint: str, *, params: Dict[str, str | int] | None = None, base_url: str = BASE_URL) -> dict:
-    user = env_or_fail("")
-    key = env_or_fail("")
+    user, key = get_onet_auth()
     url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
     response = requests.get(url, params=params, auth=(user, key), timeout=30)
     response.raise_for_status()
