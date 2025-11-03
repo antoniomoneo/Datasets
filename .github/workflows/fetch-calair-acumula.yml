@@ -80,13 +80,11 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]"
-          title: "chore: calair ult ayer -> data/calair/latest.flat.csv"
+          commit-message: chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]
+          title: chore: calair ult ayer -> data/calair/latest.flat.csv
           body: |
             Automated update for ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }}.
           branch: automation/calair-ult-ayer-${{ steps.date.outputs.YEAR }}${{ steps.date.outputs.MONTH }}${{ steps.date.outputs.DAY }}
-          delete-branch: true
-          branch-suffix: timestamp
           base: main
           add-paths: |
             data/calair/latest.flat.csv
