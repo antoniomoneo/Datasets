@@ -5,6 +5,19 @@ on:
     - cron: "15 7 * * *"  # 07:15 UTC ≈ 09:15 CEST
     - cron: "15 8 * * *"  # 08:15 UTC ≈ 10:15 CEST
   workflow_dispatch:
+    inputs:
+      year:
+        description: "Year (YYYY) to fetch; leave blank for yesterday"
+        required: false
+        default: ""
+      month:
+        description: "Month (MM) to fetch; leave blank for yesterday"
+        required: false
+        default: ""
+      day:
+        description: "Day (DD) to fetch; leave blank for yesterday"
+        required: false
+        default: ""
 
 jobs:
   fetch-accumulated-yesterday:
@@ -24,13 +37,27 @@ jobs:
           fetch-depth: 1
           ref: main
 
-      - name: Compute yesterday in Europe/Madrid
+      - name: Compute target date in Europe/Madrid
         id: date
+        env:
+          INPUT_YEAR: ${{ github.event.inputs.year }}
+          INPUT_MONTH: ${{ github.event.inputs.month }}
+          INPUT_DAY: ${{ github.event.inputs.day }}
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           from datetime import datetime, timedelta
           from zoneinfo import ZoneInfo
-          y = (datetime.now(ZoneInfo("Europe/Madrid")) - timedelta(days=1))
+          import os
+
+          manual_year = os.getenv("INPUT_YEAR") or ""
+          manual_month = os.getenv("INPUT_MONTH") or ""
+          manual_day = os.getenv("INPUT_DAY") or ""
+
+          if manual_year and manual_month and manual_day:
+              y = datetime.strptime(f"{manual_year}-{manual_month}-{manual_day}", "%Y-%m-%d")
+          else:
+              y = datetime.now(ZoneInfo("Europe/Madrid")) - timedelta(days=1)
+
           print(f"YEAR={y:%Y}")
           print(f"MONTH={y:%m}")
           print(f"DAY={y:%d}")
