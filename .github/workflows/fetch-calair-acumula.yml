@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     outputs:
       YEAR: ${{ steps.date.outputs.YEAR }}
       MONTH: ${{ steps.date.outputs.MONTH }}
@@ -47,14 +48,16 @@ jobs:
       - name: Clean temp JSON
         run: rm -f ult.json || true
 
-      - name: Commit & push if changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain data/calair/latest.flat.csv)" ]; then
-            git add data/calair/latest.flat.csv
-            git commit -m "chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]"
-            git push
-          else
-            echo "No changes to commit."
-          fi
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]
+          title: chore: calair ult ayer -> data/calair/latest.flat.csv
+          body: |
+            Automated update for ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }}.
+          branch: automation/calair-ult-ayer-${{ steps.date.outputs.YEAR }}${{ steps.date.outputs.MONTH }}${{ steps.date.outputs.DAY }}
+          base: main
+          add-paths: |
+            data/calair/latest.flat.csv
