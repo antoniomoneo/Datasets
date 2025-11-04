@@ -74,7 +74,8 @@ jobs:
           python3 scripts/calair_ult_filter_to_csv.py --input ult.json
 
       - name: Clean temp JSON
-        run: rm -f ult.json || true
+        run: |
+          rm -f ult.json || true
 
       - name: Create Pull Request
         id: cpr
