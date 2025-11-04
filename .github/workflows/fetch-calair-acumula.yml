@@ -62,6 +62,7 @@ jobs:
           print(f"MONTH={y:%m}")
           print(f"DAY={y:%d}")
           PY
+          
       - name: Fetch ult JSON (pageSize=5000)
         run: |
           set -euo pipefail
@@ -80,9 +81,9 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]
-          title: chore: calair ult ayer -> data/calair/latest.flat.csv
-          body: |
+          commit-message: "chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]"
+          title: "chore: calair ult ayer -> data/calair/latest.flat.csv"
+        body: |
             Automated update for ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }}.
           branch: automation/calair-ult-ayer-${{ steps.date.outputs.YEAR }}${{ steps.date.outputs.MONTH }}${{ steps.date.outputs.DAY }}
           base: main
