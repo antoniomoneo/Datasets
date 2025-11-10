@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     outputs:
       YEAR: ${{ steps.date.outputs.YEAR }}
       MONTH: ${{ steps.date.outputs.MONTH }}
@@ -78,16 +77,24 @@ jobs:
         run: |
           rm -f ult.json || true
 
-      - name: Create Pull Request
-        id: cpr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GH_PAT }}
-          commit-message: "chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]"
-          title: "chore: calair ult ayer -> data/calair/latest.flat.csv"
-          body: |
-            Automated update for ${{ steps.date.outputs.YEAR }}-${{ steps.date.outputs.MONTH }}-${{ steps.date.outputs.DAY }}.
-          branch: automation/calair-ult-ayer-${{ steps.date.outputs.YEAR }}${{ steps.date.outputs.MONTH }}${{ steps.date.outputs.DAY }}
-          base: main
-          add-paths: |
-            data/calair/latest.flat.csv
+      - name: Commit changes
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- data/calair/latest.flat.csv; then
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git add data/calair/latest.flat.csv
+          git commit -m "chore: calair ult ayer -> data/calair/latest.flat.csv [skip ci]"
+          echo "changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push changes
+        if: steps.commit.outputs.changes == 'true'
+        run: |
+          set -euo pipefail
+          git push origin HEAD:main
