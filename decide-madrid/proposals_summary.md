@@ -1,5 +1,5 @@
 # Decide Madrid – Proposals summary
 
-- Proposals: 2776
+- Proposals: 2777
 - Votes (cached_votes_up sum): 0
 - Retired count: 0
